@@ -7,23 +7,22 @@ import admin from "firebase-admin";
 const ev = JSON.parse(fs.readFileSync(new URL("../evento.json", import.meta.url), "utf8"));
 const forcar = process.env.FORCAR === "true";
 
+if (!process.env.FIREBASE_SERVICE_ACCOUNT) { console.error("Falta o secret FIREBASE_SERVICE_ACCOUNT."); process.exit(1); }
+admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
+const db = admin.firestore();
+
+// PIN da recepção (mantido no banco, fora do alcance do navegador). Gravado antes de tudo.
+if (process.env.CHECKIN_PIN) {
+  await db.doc("config/secreto").set({ pin: String(process.env.CHECKIN_PIN).trim() });
+  console.log("PIN da recepção atualizado.");
+}
+
 if (!forcar && ev.sincronizarAte && new Date() > new Date(ev.sincronizarAte)) {
   console.log(`Prazo de sincronização encerrado (${ev.sincronizarAte}). Nada a fazer.`);
   process.exit(0);
 }
-
-for (const k of ["STRIPE_KEY", "FIREBASE_SERVICE_ACCOUNT"]) {
-  if (!process.env[k]) { console.error(`Falta o secret ${k}.`); process.exit(1); }
-}
-
+if (!process.env.STRIPE_KEY) { console.error("Falta o secret STRIPE_KEY (PIN já gravado)."); process.exit(1); }
 const stripe = new Stripe(process.env.STRIPE_KEY);
-admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
-const db = admin.firestore();
-
-// PIN da recepção (mantido no banco, fora do alcance do navegador).
-if (process.env.CHECKIN_PIN) {
-  await db.doc("config/secreto").set({ pin: String(process.env.CHECKIN_PIN).trim() });
-}
 
 // 1. Descobre o id (plink_...) de cada URL de link de pagamento.
 const norm = u => String(u || "").trim().replace(/\/+$/, "").toLowerCase();
