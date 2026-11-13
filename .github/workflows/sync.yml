@@ -1,0 +1,36 @@
+name: Sincronizar vendas do Stripe
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # a cada 15 min (o GitHub pode atrasar alguns minutos)
+  workflow_dispatch:
+    inputs:
+      forcar:
+        description: "Rodar mesmo depois do prazo (sincronizarAte)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-stripe
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: sync/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: sync
+      - run: node sync.mjs
+        working-directory: sync
+        env:
+          STRIPE_KEY: ${{ secrets.STRIPE_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          CHECKIN_PIN: ${{ secrets.CHECKIN_PIN }}
+          FORCAR: ${{ inputs.forcar || 'false' }}

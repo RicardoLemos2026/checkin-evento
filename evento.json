@@ -1,0 +1,17 @@
+{
+  "nome": "Dobre Suas Vendas",
+  "data": "2026-11-21",
+  "fuso": "America/New_York",
+  "sincronizarAte": "2026-11-21T08:00:00-05:00",
+  "links": [
+    { "url": "https://buy.stripe.com/bJedR9f7a0mZ1yR3PEeQM2q", "rotulo": "Link 1" },
+    { "url": "https://buy.stripe.com/9B6fZh5wA6LnelD4TIeQM2z", "rotulo": "Link 2" },
+    { "url": "https://buy.stripe.com/fZu14n9MQ2v75P73PEeQM2r", "rotulo": "Link 3" }
+  ],
+  "firebaseConfig": {
+    "apiKey": "PREENCHER",
+    "authDomain": "PREENCHER",
+    "projectId": "PREENCHER",
+    "appId": "PREENCHER"
+  }
+}

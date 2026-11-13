@@ -1,0 +1,9 @@
+{
+  "name": "checkin-evento-sync",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "stripe": "^17.4.0"
+  }
+}

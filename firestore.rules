@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Aparelho liberado = já digitou o PIN certo uma vez.
+    function liberado() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/acessos/$(request.auth.uid));
+    }
+
+    // PIN fica aqui; ninguém lê pelo navegador (só a automação, com chave de serviço).
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+
+    // Cada aparelho registra o próprio acesso informando o PIN.
+    match /acessos/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['pin', 'em'])
+        && request.resource.data.pin == get(/databases/$(database)/documents/config/secreto).data.pin;
+      allow update, delete: if false;
+    }
+
+    match /inscritos/{id} {
+      allow read: if liberado();
+
+      // Recepção só cria cadastros manuais (quem chega sem estar na lista, mentorados).
+      allow create: if liberado() && request.resource.data.origem == 'manual';
+
+      // Check-in em qualquer um; nome/e-mail/quantidade só nos manuais.
+      allow update: if liberado() && (
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['checkins', 'checkinEm', 'checkinUlt'])
+        || (resource.data.origem == 'manual'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['checkins', 'checkinEm', 'checkinUlt', 'nome', 'email', 'telefone', 'qtd', 'obs']))
+      );
+
+      allow delete: if liberado() && resource.data.origem == 'manual';
+    }
+  }
+}
