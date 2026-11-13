@@ -4,14 +4,30 @@
   "fuso": "America/New_York",
   "sincronizarAte": "2026-11-21T08:00:00-05:00",
   "links": [
-    { "url": "https://buy.stripe.com/bJedR9f7a0mZ1yR3PEeQM2q", "rotulo": "Link 1" },
-    { "url": "https://buy.stripe.com/9B6fZh5wA6LnelD4TIeQM2z", "rotulo": "Link 2" },
-    { "url": "https://buy.stripe.com/fZu14n9MQ2v75P73PEeQM2r", "rotulo": "Link 3" }
+    {
+      "url": "https://buy.stripe.com/bJedR9f7a0mZ1yR3PEeQM2q",
+      "rotulo": ""
+    },
+    {
+      "url": "https://buy.stripe.com/9B6fZh5wA6LnelD4TIeQM2z",
+      "rotulo": ""
+    },
+    {
+      "url": "https://buy.stripe.com/fZu14n9MQ2v75P73PEeQM2r",
+      "rotulo": ""
+    }
   ],
   "firebaseConfig": {
-    "apiKey": "PREENCHER",
-    "authDomain": "PREENCHER",
-    "projectId": "PREENCHER",
-    "appId": "PREENCHER"
+    "apiKey": "AIzaSyAUt2a1b5Z9KVk7M0E2DNvrIKp7r6k1DOM",
+    "authDomain": "checkin-evento-d37f2.firebaseapp.com",
+    "projectId": "checkin-evento-d37f2",
+    "appId": "1:85433036431:web:3bebdfaa84652b3b750afa"
+  },
+  "inicio": "09:00",
+  "local": "200 Corporate Pl, Peabody, MA",
+  "lotes": {
+    "127": "Lote 1",
+    "157": "Lote 2",
+    "197": "Lote 3"
   }
 }

@@ -74,6 +74,8 @@ for (const [plid, link] of links) {
     if (!atual) {
       const itens = await stripe.checkout.sessions.listLineItems(s.id, { limit: 100 });
       const qtd = itens.data.reduce((t, i) => t + (i.quantity || 1), 0) || 1;
+      const unit = itens.data[0]?.price?.unit_amount ?? Math.round((s.amount_total || 0) / qtd);
+      const rotulo = (ev.lotes || {})[String(Math.round(unit / 100))] || link.rotulo || `$ ${Math.round(unit / 100)}`;
       const cd = s.customer_details || {};
       batch.set(db.doc("inscritos/" + id), {
         nome: campoNome(s) || cd.name || cd.email || "(sem nome)",
@@ -82,7 +84,7 @@ for (const [plid, link] of links) {
         telefone: cd.phone || "",
         extras: camposExtras(s),
         origem: "stripe",
-        rotulo: link.rotulo,
+        rotulo,
         link: plid,
         sessao: s.id,
         valor: (s.amount_total || 0) / 100,
