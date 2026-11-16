@@ -33,4 +33,5 @@ jobs:
           STRIPE_KEY: ${{ secrets.STRIPE_KEY }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           CHECKIN_PIN: ${{ secrets.CHECKIN_PIN }}
+          LEITURA_PIN: ${{ secrets.LEITURA_PIN }}
           FORCAR: ${{ inputs.forcar || 'false' }}

@@ -1,89 +1,1039 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
+<meta name="robots" content="noindex, nofollow">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#14100d">
-<title>Check-in</title>
+<title>Financeiro do Evento</title>
 <style>
-  :root {
-    --bar: #14100d; --accent: #f57c00; --bg: #f6f4f1; --card: #fff; --txt: #1d1a17; --mut: #7a716a;
-    --ok: #1f8a4c; --ok-bg: #e5f4ea; --bad: #c0392b; --line: #e7e2dc; --r: 14px;
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f6f4f1; --card:#ffffff; --ink:#1d1814; --muted:#6f655c; --line:#e6e0d9;
+  --navy:#1d1814; --accent:#f57c00; --accent-ink:#ffffff; --bar:#14100d;
+  --free:#e0a526; --pago:#2f7d5b; --ok:#1f8a4c; --warn:#a96a07; --bad:#c0392b;
+  --band:#f4ece3; --tot:#fde3c4; --sub:#f3f0ec; --input:#fff7d6;
+  --okbg:rgba(31,138,76,.13); --warnbg:rgba(224,165,38,.2); --badbg:rgba(192,57,43,.13);
+  --shadow:0 1px 2px rgba(30,20,10,.06),0 4px 14px rgba(30,20,10,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#100d0b; --card:#1b1713; --ink:#efe9e2; --muted:#a39990; --line:#322b25;
+    --navy:#ffb067; --accent:#ff9a2e; --accent-ink:#1a1006; --bar:#0b0907;
+    --free:#f0b93a; --pago:#4fb88a; --ok:#4ac584; --warn:#f0b93a; --bad:#ff7a6b;
+    --band:#2a2119; --tot:#3b2b1a; --sub:#231e19; --input:#2c2a14;
+    --okbg:rgba(74,197,132,.16); --warnbg:rgba(240,185,58,.18); --badbg:rgba(255,122,107,.16);
+    --shadow:none;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--bg); color: var(--txt);
-    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
-  header { background: var(--bar); color: #fff; padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
-    position: sticky; top: 0; z-index: 5; }
-  header h1 { margin: 0; font-size: 17px; font-weight: 650; }
-  header .sub { color: #c9bfb6; font-size: 13px; }
-  main { max-width: 760px; margin: 0 auto; padding: 12px 12px calc(96px + env(safe-area-inset-bottom)); }
-  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
-  .kpi { background: var(--card); border-radius: var(--r); padding: 10px 12px; border: 1px solid var(--line); }
-  .kpi .v { font-size: 24px; font-weight: 700; }
-  .kpi .l { font-size: 12px; color: var(--mut); text-transform: uppercase; letter-spacing: .04em; }
-  .kpi.ok .v { color: var(--ok); }
-  .search { position: sticky; top: calc(56px + env(safe-area-inset-top)); z-index: 4; background: var(--bg); padding: 4px 0 8px; }
-  .search input { width: 100%; font-size: 18px; padding: 14px 16px; border-radius: var(--r);
-    border: 2px solid var(--line); background: #fff; outline: none; }
-  .search input:focus { border-color: var(--accent); }
-  .tabs { display: flex; gap: 6px; margin-top: 8px; }
-  .tabs button { flex: 1; padding: 9px 4px; border-radius: 999px; border: 1px solid var(--line); background: #fff;
-    font-size: 14px; color: var(--txt); }
-  .tabs button.on { background: var(--bar); color: #fff; border-color: var(--bar); }
-  .list { display: flex; flex-direction: column; gap: 8px; }
-  .row { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 12px;
-    display: flex; align-items: center; gap: 12px; }
-  .row.done { background: var(--ok-bg); border-color: #bfe3cb; }
-  .row .info { flex: 1; min-width: 0; }
-  .row .nm { font-weight: 650; font-size: 17px; overflow-wrap: anywhere; }
-  .row .meta { color: var(--mut); font-size: 13px; overflow-wrap: anywhere; }
-  .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #efe9e3; color: #5d544d; margin-right: 4px; }
-  .tag.man { background: #fff1de; color: #9a5a00; }
-  .tag.qtd { background: #e8eefc; color: #2a4aa0; }
-  .tag.warn { background: #fde8e6; color: var(--bad); }
-  .btn { border: 0; border-radius: 12px; padding: 14px 18px; font-size: 16px; font-weight: 650; cursor: pointer; white-space: nowrap; }
-  .btn.go { background: var(--accent); color: #fff; min-width: 108px; }
-  .btn.ghost { background: transparent; color: var(--mut); padding: 8px 10px; font-weight: 500; font-size: 13px; text-decoration: underline; }
-  .btn.dark { background: var(--bar); color: #fff; }
-  .btn:disabled { opacity: .5; }
-  .right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-  .okmark { color: var(--ok); font-weight: 700; font-size: 15px; }
-  .empty { text-align: center; color: var(--mut); padding: 28px 8px; }
-  .fab { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 6;
-    background: var(--accent); color: #fff; border: 0; border-radius: 999px; padding: 16px 20px; font-size: 16px;
-    font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
-  .foot { color: var(--mut); font-size: 12px; text-align: center; margin-top: 16px; }
-  .center { min-height: 70vh; display: grid; place-items: center; text-align: center; padding: 24px; }
-  .center input { font-size: 28px; letter-spacing: .3em; text-align: center; width: 220px; padding: 12px; border-radius: var(--r);
-    border: 2px solid var(--line); margin: 12px 0; }
-  .err { color: var(--bad); min-height: 20px; }
-  dialog { border: 0; border-radius: 18px; padding: 0; width: min(520px, 94vw); }
-  dialog::backdrop { background: rgba(0,0,0,.45); }
-  .dlg { padding: 18px; }
-  .dlg h2 { margin: 0 0 12px; font-size: 18px; }
-  .dlg label { display: block; font-size: 13px; color: var(--mut); margin: 10px 0 4px; }
-  .dlg input, .dlg textarea { width: 100%; font-size: 16px; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); font-family: inherit; }
-  .dlg textarea { min-height: 160px; }
-  .dlg .act { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
-  .dlg .chk { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--txt); font-size: 15px; }
-  .dlg .chk input { width: auto; }
-  .seg { display: flex; gap: 6px; margin-bottom: 4px; }
-  .seg button { flex: 1; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font-size: 14px; }
-  .seg button.on { background: var(--bar); color: #fff; }
-  .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
-    background: var(--bar); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; z-index: 9;
-    opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; text-align: center; }
-  .toast.on { opacity: 1; }
-  .toast button { color: #ffb366; background: none; border: 0; font-weight: 700; margin-left: 8px; pointer-events: auto; }
+}
+:root[data-theme="dark"]{
+  --bg:#100d0b; --card:#1b1713; --ink:#efe9e2; --muted:#a39990; --line:#322b25;
+  --navy:#ffb067; --accent:#ff9a2e; --accent-ink:#1a1006; --bar:#0b0907;
+  --free:#f0b93a; --pago:#4fb88a; --ok:#4ac584; --warn:#f0b93a; --bad:#ff7a6b;
+  --band:#2a2119; --tot:#3b2b1a; --sub:#231e19; --input:#2c2a14;
+  --okbg:rgba(74,197,132,.16); --warnbg:rgba(240,185,58,.18); --badbg:rgba(255,122,107,.16);
+  --shadow:none;
+}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 52px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bar);z-index:30}
+.wrap{max-width:1100px;margin:0 auto;padding:0 14px 60px}
+.hbar{background:var(--bar);color:#fff}
+.hin{max-width:1100px;margin:0 auto;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px}
+.hbar .brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-weight:800;letter-spacing:.2px}
+.hbar .logo{width:34px;height:34px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-size:17px}
+.hbar .chip{background:rgba(255,255,255,.1);color:#e9e2dc;border-color:transparent}
+.hbar .chip.ok{background:rgba(74,197,132,.22);color:#86e3b1}.hbar .chip.warn{background:rgba(240,185,58,.25);color:#ffd27a}.hbar .chip.bad{background:rgba(255,122,107,.25);color:#ffb3a9}
+.evhead{padding:16px 0 8px}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-weight:600;text-decoration:none;font-size:13px;margin-bottom:6px}
+.back:hover{color:var(--accent)}
+.pghead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:6px 0 18px}
+.pghead h1{font-size:26px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:18px}
+.ev{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);cursor:pointer;display:flex;flex-direction:column;min-width:0}
+.ev:hover{border-color:var(--accent)}.ev.arch{opacity:.72}
+.ev .top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 20px 2px}
+.ev .top h3{margin:0;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.ev .dt{padding:0 20px;color:var(--muted);font-size:12.5px;min-height:18px}
+.ev .mx{display:grid;grid-template-columns:1fr 1fr;gap:14px 12px;padding:14px 20px 16px}
+.ev .mx .l{font-size:12.5px;color:var(--muted)}.ev .mx .v{font-size:17px;font-weight:700;margin-top:1px}
+.ev .ft{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:8px 12px 8px 20px;font-size:12px;color:var(--muted);gap:8px}
+.ev .ft .ic{display:flex;gap:2px;flex:none}
+.ibtn{border:0;background:transparent;color:var(--ink);padding:8px;border-radius:8px;cursor:pointer;display:grid;place-items:center}
+.ibtn:hover{background:var(--sub)}.ibtn.red{color:var(--bad)}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:42px;height:42px;border-radius:12px;background:var(--navy);color:var(--bg);display:grid;place-items:center;font-weight:800;letter-spacing:.5px;flex:none}
+h1{font-size:20px;line-height:1.15;margin:0;color:var(--navy)}
+.sub{color:var(--muted);font-size:12.5px}
+.chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chip{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--sub);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.chip.ok{background:var(--okbg);color:var(--ok);border-color:transparent}
+.chip.warn{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.chip.bad{background:var(--badbg);color:var(--bad);border-color:transparent}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:4px;overflow-x:auto;padding:6px 0;margin:0 -14px;padding-left:14px;padding-right:14px;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:8px 14px;border-radius:10px;cursor:pointer;white-space:nowrap}
+nav.tabs button.on{background:var(--accent);color:var(--accent-ink)}
+main{padding-top:16px}
+.banner{padding:10px 14px;border-radius:12px;margin:0 0 12px;font-size:13px}
+.banner.warn{background:var(--warnbg);color:var(--warn)}
+.banner.bad{background:var(--badbg);color:var(--bad)}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:12px}
+.kpis>.card{margin-bottom:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:12px;min-width:0}
+.card h2{font-size:15px;margin:0 0 12px;color:var(--navy);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card h2 small{font-weight:500;color:var(--muted);font-size:12px}
+.kpi .l{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.kpi .v{font-size:26px;font-weight:800;color:var(--ink);margin-top:2px;line-height:1.15}
+.kpi .s{font-size:12.5px;color:var(--muted);margin-top:2px}
+.kpi .v.neg{color:var(--bad)} .kpi .v.pos{color:var(--ok)}
+.two{display:grid;gap:0 12px;grid-template-columns:minmax(0,1fr)}
+.two>div{min-width:0}
+@media(min-width:860px){.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
+.scroll{overflow-x:auto}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{background:var(--navy);color:var(--bg);font-weight:700;padding:8px 10px;text-align:center;white-space:nowrap;font-size:12px}
+.tbl th:first-child{text-align:left;border-radius:10px 0 0 0}.tbl th:last-child{border-radius:0 10px 0 0}
+.tbl td{padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td.r{text-align:right;font-variant-numeric:tabular-nums}.tbl td.c{text-align:center;font-variant-numeric:tabular-nums}
+.tbl tr.band td{background:var(--band);font-weight:700;color:var(--navy);font-size:12px;letter-spacing:.3px}
+.tbl tr.sub td{background:var(--sub);font-weight:700}
+.tbl tr.tot td{background:var(--tot);font-weight:800}
+.tbl tr.click{cursor:pointer}.tbl tr.click:hover td{background:var(--sub)}
+.tbl td.ok{color:var(--ok);font-weight:700}.tbl td.bad{color:var(--bad);font-weight:700}
+.tbl td.wrapc{white-space:normal;min-width:140px}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--sub);color:var(--muted)}
+.badge.free{background:var(--warnbg);color:var(--warn)}.badge.pago{background:var(--okbg);color:var(--ok)}
+.badge.bad{background:var(--badbg);color:var(--bad)}.badge.ok{background:var(--okbg);color:var(--ok)}.badge.warn{background:var(--warnbg);color:var(--warn)}
+.mb{position:relative;margin:6px 0 46px}
+.mb .lbl{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;gap:8px}
+.mb .lbl b{font-size:14px}
+.track{position:relative;height:16px;border-radius:999px;background:var(--sub);border:1px solid var(--line);overflow:hidden;display:flex}
+.seg{display:block;height:100%}.seg.free{background:var(--free)}.seg.pago{background:var(--pago)}.seg.rec{background:var(--accent)}
+.mark{position:absolute;top:22px;height:24px;width:0;border-left:2px dashed var(--muted);opacity:.85}
+.mark span{position:absolute;top:100%;margin-top:2px;transform:translateX(-50%);font-size:11px;white-space:nowrap;text-align:center;color:var(--muted);line-height:1.15}
+.mark span b{display:block;color:var(--ink)}
+.mark.hit{border-left-color:var(--ok)}.mark.hit span b{color:var(--ok)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:4px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+.bar{height:8px;border-radius:999px;background:var(--sub);overflow:hidden;border:1px solid var(--line);min-width:90px}
+.bar>i{display:block;height:100%;background:var(--accent)}.bar>i.warn{background:var(--free)}.bar>i.bad{background:var(--bad)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar .sp{flex:1}
+.btn{border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:700;padding:9px 16px;border-radius:10px;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:var(--sub);color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--badbg);color:var(--bad)}
+.btn.small{padding:5px 10px;font-size:12px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0;max-width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+input.in,select.in{background:var(--input)}
+input.num{width:100px;text-align:right}
+.search{flex:1;min-width:160px}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{border:1px solid var(--line);background:var(--card);color:var(--muted);font:inherit;font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:999px;cursor:pointer}
+.pill.on{background:var(--navy);color:var(--bg);border-color:var(--navy)}
+.ov{position:fixed;inset:0;background:rgba(10,15,30,.55);z-index:50;display:grid;place-items:center;padding:calc(14px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px))}
+.dlg{background:var(--card);border-radius:18px;padding:18px;width:min(560px,100%);max-height:100%;overflow:auto;border:1px solid var(--line)}
+.dlg h3{margin:0 0 12px;color:var(--navy);font-size:16px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600}
+.fld.wide{grid-column:1/-1}.fld input,.fld select,.fld textarea{width:100%;font-weight:400;font-size:14px}
+.fld small{font-weight:400;color:var(--muted)}
+.acts{display:flex;gap:8px;margin-top:14px;align-items:center}.acts .sp{flex:1}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--navy);color:var(--bg);padding:10px 16px;border-radius:12px;z-index:60;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.25);max-width:90vw}
+.empty{text-align:center;color:var(--muted);padding:28px 10px}
+.note{font-size:12.5px;color:var(--muted)}
+.res{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.res .c{background:var(--sub);border-radius:12px;padding:10px;text-align:center}
+.res .c .h{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.res .c .n{font-size:17px;font-weight:800;margin-top:2px}.res .c .n.neg{color:var(--bad)}.res .c .n.pos{color:var(--ok)}
+.res .c .m{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.35}
+@media(max-width:560px){.res{grid-template-columns:repeat(2,minmax(0,1fr))}.fgrid{grid-template-columns:1fr}.kpi .v{font-size:22px}}
+.ck{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);margin-bottom:8px}
+.ck.in{background:var(--okbg);border-color:transparent}
+.ck .nm{flex:1;min-width:0}.ck .nm b{display:block;overflow-wrap:anywhere;font-size:15px}
+.ck .nm span{font-size:12.5px;color:var(--muted)}
+.ck .btn{min-width:112px;padding:12px 16px;font-size:15px}
+.kpis.ck3{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis.ck3>.card:first-child{grid-column:1/-1}
+.ckbar{height:14px;border-radius:999px;background:var(--sub);border:1px solid var(--line);overflow:hidden;display:flex;margin-top:8px}
+.searchbig{width:100%;font-size:17px;padding:13px 14px;margin-bottom:10px}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--muted)}
+.row2{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.row2 label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
+.cfgrow{display:grid;grid-template-columns:minmax(120px,1.6fr) repeat(5,minmax(70px,1fr)) auto;gap:6px;align-items:center;margin-bottom:6px}
+.cfgrow.h{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.cfgrow input,.cfgrow select{width:100%;padding:6px 8px}
+.catrow{display:grid;grid-template-columns:1fr 130px auto;gap:6px;align-items:center;margin-bottom:6px}
+@media(max-width:700px){.cfgrow{grid-template-columns:1fr 1fr}.cfgrow.h{display:none}}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="shim.js"></script>
+<script src="vendor/papaparse.min.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%8A%3C/text%3E%3C/svg%3E">
 </head>
 <body>
-<header><h1 id="tit">Check-in</h1><div class="sub" id="sub">carregando…</div></header>
-<main id="app"><div class="center">Carregando…</div></main>
-<div class="toast" id="toast"></div>
-<dialog id="dlg"></dialog>
-<script type="module" src="app.js"></script>
+<div class="hbar"><div class="hin"><a class="brand" href="#home"><span class="logo">$</span><span>Financeiro de Eventos</span></a><div class="chips" id="chips"></div></div></div>
+<div class="wrap">
+  <div id="evHead"></div>
+  <nav class="tabs" id="tabs" style="display:none"></nav>
+  <main id="view"><div class="empty">Carregando…</div></main>
+</div>
+<div id="modal"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ================= utilidades ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const nf2 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const moneyK = n => { n = Number(n) || 0; return Math.abs(n) >= 1000 ? "$ " + (n / 1000).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "k" : money(n); };
+const money = n => { n = Number(n) || 0; return (n < 0 ? "-" : "") + "$ " + nf2.format(Math.abs(n)); };
+const pct = n => (n == null || !isFinite(n)) ? "—" : (n * 100).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%";
+const int = n => (Number(n) || 0).toLocaleString("pt-BR");
+const fdate = iso => iso ? String(iso).slice(0, 10).split("-").reverse().join("/") : "";
+const r2 = n => Math.round((Number(n) || 0) * 100) / 100;
+const sum = (a, f) => a.reduce((t, x) => t + (+f(x) || 0), 0);
+const todayISO = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+const ftime = iso => { if (!iso) return ""; const d = new Date(iso); const t = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); return d.toDateString() === new Date().toDateString() ? t : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + t; };
+const stripeFee = v => v > 0 ? r2(v * 0.029 + 0.30) : 0;
+const num = v => { const n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isFinite(n) ? n : 0; };
+
+/* ================= importação Stripe (funções puras) ================= */
+function normName(s) {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\(.*?\)/g, " ").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
+function sameName(a, b) {
+  a = normName(a); b = normName(b);
+  if (!a || !b) return false;
+  if (a === b || a.startsWith(b) || b.startsWith(a)) return true;
+  const ta = a.split(" "), tb = b.split(" ");
+  return ta[0] === tb[0] && ta[ta.length - 1] === tb[tb.length - 1];
+}
+function stripeBrands(raw) {
+  const cnt = {};
+  raw.forEach(r => {
+    if (!/^(charge|payment)$/i.test(String(r["Type"] || "").trim()) || num(r["Amount"]) <= 0) return;
+    const b = String(r["brand (metadata)"] || "").trim();
+    cnt[b] = (cnt[b] || 0) + 1;
+  });
+  return Object.keys(cnt).map(k => ({ brand: k, n: cnt[k] })).sort((a, b) => b.n - a.n);
+}
+function stripeCandidates(raw, opt, existing) {
+  const g = (r, k) => String(r[k] == null ? "" : r[k]).trim();
+  const charges = raw.filter(r => /^(charge|payment)$/i.test(g(r, "Type")) && num(r["Amount"]) > 0);
+  const refBySrc = {};
+  raw.filter(r => /^(refund|payment_refund)$/i.test(g(r, "Type"))).forEach(r => {
+    const s = g(r, "Source"); if (s) refBySrc[s] = (refBySrc[s] || 0) + Math.abs(num(r["Amount"]));
+  });
+  const out = [];
+  charges.forEach(r => {
+    if (opt.brand != null && g(r, "brand (metadata)") !== opt.brand) return;
+    const created = g(r, "Created (UTC)").slice(0, 10);
+    if (opt.minDate && created < opt.minDate) return;
+    const avail = g(r, "Available On (UTC)").slice(0, 10);
+    const amount = num(r["Amount"]), fee = num(r["Fee"]);
+    const qty = Math.max(1, parseInt(g(r, "quantidade (metadata)"), 10) || 1);
+    const email = g(r, "lead_email (metadata)") || g(r, "customer_email (metadata)") || g(r, "Customer Email");
+    const name = g(r, "customer_name (metadata)") || g(r, "Customer Name") || email || "(sem nome)";
+    const src = g(r, "Source") || g(r, "id");
+    const refunded = (refBySrc[g(r, "Source")] || 0) >= amount - 0.005;
+    let restV = amount, restF = fee;
+    for (let i = 1; i <= qty; i++) {
+      const v = i === qty ? r2(restV) : r2(amount / qty), f = i === qty ? r2(restF) : r2(fee / qty);
+      restV -= v; restF -= f;
+      const it = {
+        key: src + "#" + i, stripeId: qty > 1 ? src + "#" + i : src,
+        cliente: qty > 1 ? name + " (" + i + "/" + qty + ")" : name, email,
+        dataProc: created, dataReceb: avail, valor: v, taxa: f, refunded, status: "novo", match: null
+      };
+      // já existe no app?
+      const bySid = existing.find(e => e.stripeId && e.stripeId === it.stripeId);
+      const byHeur = bySid || existing.find(e => !e.stripeId && e.dataProc === created && sameName(e.cliente, name) &&
+        (Math.abs((+e.valor || 0) - v) < 0.005 || (e.sub === "Reembolso" && (+e.valor || 0) === 0)));
+      const ex = bySid || byHeur;
+      if (ex) {
+        it.match = ex.id;
+        if (refunded) it.status = ex.sub === "Reembolso" ? "dup" : "conv";
+        else it.status = "dup";
+      } else it.status = refunded ? "novo_reemb" : "novo";
+      out.push(it);
+    }
+  });
+  return out.sort((a, b) => a.dataProc < b.dataProc ? 1 : a.dataProc > b.dataProc ? -1 : 0);
+}
+
+/* ================= estado ================= */
+const SEG_DEF = [
+  { nome: "Mentorados", tipo: "free", ticket: 0, metas: [0, 0, 0] },
+  { nome: "Tráfego", tipo: "pago", ticket: 0, metas: [0, 0, 0] },
+  { nome: "Orgânico", tipo: "pago", ticket: 0, metas: [0, 0, 0] }
+];
+const CFG_DEF = { nome: "Novo evento", data: "", local: "", taxaPrevista: 0.03, segmentos: SEG_DEF, categorias: [] };
+const FORMAS_DEF = ["Stripe", "Zelle", "Cash", "Outros"].map(f => ({ forma: f, qtd: 0, preco: 0, taxa: 0 }));
+const METAS = ["Mínima", "Básica", "Master"];
+const TABS = [["painel", "Painel"], ["checkin", "Check-in"], ["inscritos", "Inscritos"], ["gastos", "Gastos"], ["almoco", "Almoço"], ["importar", "Importar Stripe"], ["config", "Metas e Budget"]];
+const S = {
+  db: null, user: null, canWrite: true, tab: "painel", view: "home", eid: null,
+  cfg: null, ins: [], gastos: [], adesp: [], arec: null,
+  events: [], evData: {}, got: new Set(), subs: {}, showArch: false,
+  sync: "load", err: null, pending: false,
+  fIns: { q: "", seg: "" }, fChk: { q: "", f: "faltam" }, fGas: { q: "", cat: "", st: "" },
+  aDraft: null, cDraft: null, imp: null
+};
+const cfgNow = () => S.cfg || CFG_DEF;
+const P = path => "eventos/" + S.eid + "/" + path;
+
+/* ================= cálculos ================= */
+function calc() {
+  const cfg = cfgNow(), segs = cfg.segmentos || [];
+  const ing = S.ins.filter(r => r.sub === "Ingresso");
+  const bySeg = segs.map(s => ({ ...s, metas: [0, 1, 2].map(i => +((s.metas || [])[i]) || 0), real: ing.filter(r => r.origem === s.nome).length }));
+  const grp = tipo => {
+    const L = bySeg.filter(s => s.tipo === tipo);
+    return { rows: L, real: sum(L, s => s.real), metas: [0, 1, 2].map(i => sum(L, s => s.metas[i])) };
+  };
+  const free = grp("free"), pago = grp("pago");
+  const tot = { real: free.real + pago.real, metas: [0, 1, 2].map(i => free.metas[i] + pago.metas[i]) };
+  const semOrigem = ing.filter(r => !segs.some(s => s.nome === r.origem)).length;
+  const recReal = sum(ing, r => r.valor), feeReal = sum(S.ins, r => r.taxa);
+  const recMeta = [0, 1, 2].map(i => sum(bySeg, s => (+s.ticket || 0) * s.metas[i]));
+  const taxa = +cfg.taxaPrevista || 0;
+  const feeMeta = recMeta.map(v => v * taxa);
+  const cats = (cfg.categorias || []).map(c => ({ ...c, budget: +c.budget || 0, real: sum(S.gastos.filter(g => g.categoria === c.nome), g => g.valor) }));
+  const gastoReal = sum(S.gastos, g => g.valor), budgetTot = sum(cats, c => c.budget);
+  const gastoSemCat = gastoReal - sum(cats, c => c.real);
+  const linhas = getLinhas();
+  const alBruta = sum(linhas, l => (+l.qtd || 0) * (+l.preco || 0)), alTaxa = sum(linhas, l => l.taxa), alQtd = sum(linhas, l => l.qtd);
+  const alDesp = sum(S.adesp, d => d.valor);
+  return {
+    cfg, segs: bySeg, free, pago, tot, semOrigem, recReal, feeReal, recMeta, feeMeta, taxa,
+    liqReal: recReal - feeReal, liqMeta: recMeta.map((v, i) => v - feeMeta[i]),
+    cats, gastoReal, budgetTot, gastoSemCat,
+    resReal: recReal - gastoReal, resMeta: recMeta.map(v => v - budgetTot),
+    al: { linhas, bruta: alBruta, taxa: alTaxa, qtd: alQtd, liq: alBruta - alTaxa, desp: alDesp, saldo: alBruta - alTaxa - alDesp }
+  };
+}
+function getLinhas() {
+  if (S.aDraft) return S.aDraft;
+  return (S.arec && S.arec.linhas && S.arec.linhas.length) ? S.arec.linhas : FORMAS_DEF;
+}
+
+/* ================= UI helpers ================= */
+function toast(msg, bad) {
+  const t = $("#toast"); t.innerHTML = '<div class="toast" style="' + (bad ? "background:var(--bad);color:#fff" : "") + '">' + esc(msg) + "</div>";
+  clearTimeout(toast._t); toast._t = setTimeout(() => { t.innerHTML = ""; }, 2600);
+}
+function askConfirm(msg) {
+  return new Promise(res => {
+    const m = $("#modal");
+    m.innerHTML = '<div class="ov"><div class="dlg" style="width:min(420px,100%)"><h3>Confirmar</h3><p>' + esc(msg) + '</p><div class="acts"><span class="sp"></span><button class="btn ghost" id="cNo">Cancelar</button><button class="btn danger" id="cYes">Confirmar</button></div></div></div>';
+    $("#cNo").onclick = () => { m.innerHTML = ""; res(false); };
+    $("#cYes").onclick = () => { m.innerHTML = ""; res(true); };
+  });
+}
+async function run(fn, okMsg) {
+  if (!S.db) { toast("Dados compartilhados indisponíveis.", true); return false; }
+  try { await fn(); touch(); if (okMsg) toast(okMsg); return true; }
+  catch (e) {
+    if (e && e.code === "invalid_argument") { S.canWrite = false; toast("Sem permissão para editar. Peça acesso de colaborador.", true); schedule(); }
+    else if (e && e.code === "quota_exceeded") toast("Limite de armazenamento atingido.", true);
+    else toast("Não foi possível salvar. Tente de novo.", true);
+    return false;
+  }
+}
+function openForm(o) {
+  const m = $("#modal");
+  const fh = o.fields.map(f => {
+    const id = "f_" + f.key, v = o.values[f.key] == null ? "" : o.values[f.key];
+    let ctl;
+    if (f.type === "select") ctl = '<select id="' + id + '">' + f.options.map(op => '<option value="' + esc(op.v) + '"' + (String(op.v) === String(v) ? " selected" : "") + ">" + esc(op.t) + "</option>").join("") + "</select>";
+    else if (f.type === "textarea") ctl = '<textarea id="' + id + '" rows="2">' + esc(v) + "</textarea>";
+    else ctl = '<input id="' + id + '" type="' + (f.type || "text") + '"' + (f.step ? ' step="' + f.step + '"' : "") + (f.list ? ' list="' + f.list + '"' : "") + ' value="' + esc(v) + '">';
+    return '<label class="fld' + (f.wide ? " wide" : "") + '"><span>' + esc(f.label) + "</span>" + ctl + (f.hint ? "<small>" + esc(f.hint) + "</small>" : "") + "</label>";
+  }).join("");
+  m.innerHTML = '<div class="ov"><div class="dlg"><h3>' + esc(o.title) + '</h3><div class="fgrid">' + fh + "</div>" + (o.datalists || "") +
+    '<div class="acts">' + (o.onDelete ? '<button class="btn danger" id="dDel">Excluir</button>' : "") + '<span class="sp"></span><button class="btn ghost" id="dNo">Cancelar</button><button class="btn" id="dOk"' + (S.canWrite ? "" : " disabled") + '>' + esc(o.okLabel || "Salvar") + "</button></div></div></div>";
+  const get = () => { const out = {}; o.fields.forEach(f => { out[f.key] = $("#f_" + f.key).value; }); return out; };
+  const close = () => { m.innerHTML = ""; };
+  $("#dNo").onclick = close;
+  $("#dOk").onclick = async () => { const v = get(); const err = o.validate ? o.validate(v) : null; if (err) { toast(err, true); return; } if (await o.onSave(v)) close(); };
+  if (o.onDelete) $("#dDel").onclick = async () => { if (await askConfirm("Excluir este registro?")) { if (await o.onDelete()) close(); } };
+  if (o.onReady) o.onReady($);
+}
+const clean = o => { const c = { ...o }; delete c.id; return c; };
+const opt = (v, t) => ({ v, t: t == null ? v : t });
+
+/* ================= renderização ================= */
+let rafId = 0;
+function schedule() { cancelAnimationFrame(rafId); rafId = requestAnimationFrame(() => render()); }
+function editingNow() {
+  const a = document.activeElement;
+  return a && $("#view").contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);
+}
+function evReady(id) { return S.got.has(id + ":ins") && S.got.has(id + ":gastos") && S.got.has(id + ":adesp") && S.got.has(id + ":arec"); }
+function render(force) {
+  if (!force && editingNow() && S.view === "event" && S.tab !== "painel") { S.pending = true; renderHead(); return; }
+  S.pending = false;
+  renderHead();
+  const v = $("#view"), st = window.scrollY;
+  let ban = "";
+  if (!S.db && S.sync !== "load") ban += '<div class="banner bad">Os dados compartilhados não estão disponíveis nesta visualização. Abra o app pelo link no Claude, com a sua conta, para ver e editar os números da equipe.</div>';
+  else if (!S.canWrite) ban += '<div class="banner warn">Modo leitura: você pode ver os números, mas não editar. Peça à pessoa dona do app acesso de colaborador.</div>';
+  if (S.sync === "slow") ban += '<div class="banner warn">Os dados ainda não responderam. O que aparece abaixo pode estar desatualizado.</div>';
+  let html = "";
+  const loaded = S.got.has("events");
+  if (S.view === "home") html = loaded ? viewHome() : (S.db || S.sync === "load" ? '<div class="empty">Carregando eventos…</div>' : "");
+  else if (!loaded) html = (S.db || S.sync === "load") ? '<div class="empty">Carregando…</div>' : "";
+  else if (!S.events.some(e => e.id === S.eid)) html = '<div class="card empty">Evento não encontrado. <a href="#home">Voltar para os eventos</a></div>';
+  else if (!evReady(S.eid)) html = '<div class="empty">Carregando dados do evento…</div>';
+  else if (S.tab === "painel") html = viewPainel();
+  else if (S.tab === "checkin") html = viewCheckin();
+  else if (S.tab === "inscritos") html = viewInscritos();
+  else if (S.tab === "gastos") html = viewGastos();
+  else if (S.tab === "almoco") html = viewAlmoco();
+  else if (S.tab === "importar") html = viewImportar();
+  else html = viewConfig();
+  v.innerHTML = ban + html;
+  bindView();
+  window.scrollTo(0, st);
+}
+function renderHead() {
+  const ev = S.view === "event" ? S.events.find(e => e.id === S.eid) : null;
+  document.title = ev ? (ev.nome + " · Financeiro") : "Financeiro de Eventos";
+  const ch = [];
+  if (S.sync === "load") ch.push('<span class="chip">Conectando…</span>');
+  else if (!S.db) ch.push('<span class="chip bad">Sem conexão com os dados</span>');
+  else if (S.sync === "slow") ch.push('<span class="chip warn">Sem resposta</span>');
+  else if (S.err) ch.push('<span class="chip bad">Erro de leitura</span>');
+  else ch.push('<span class="chip ok">Sincronizado com a equipe</span>');
+  if (!S.canWrite) ch.push('<span class="chip">Somente leitura</span>');
+  $("#chips").innerHTML = ch.join("");
+  const eh = $("#evHead"), tb = $("#tabs");
+  if (S.view === "event") {
+    const c = cfgNow(), sub = [];
+    if (ev && c.data) { sub.push(fdate(c.data)); const d = Math.round((new Date(c.data + "T12:00:00") - new Date()) / 86400000); sub.push(d > 0 ? "faltam " + d + " dias" : d === 0 ? "é hoje" : "há " + (-d) + " dias"); }
+    if (ev && c.local) sub.push(c.local);
+    eh.innerHTML = '<div class="evhead"><a class="back" href="#home">← Eventos</a><h1>' + esc(ev ? c.nome : "Evento") + '</h1><div class="sub">' + esc(sub.join(" · ")) + "</div></div>";
+    tb.style.display = ev ? "" : "none";
+    tb.innerHTML = ev ? TABS.map(t => '<button data-tab="' + t[0] + '" class="' + (S.tab === t[0] ? "on" : "") + '">' + t[1] + "</button>").join("") : "";
+  } else { eh.innerHTML = ""; tb.style.display = "none"; tb.innerHTML = ""; }
+}
+
+/* ---- Início: lista de eventos ---- */
+const svgI = inner => '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + inner + "</svg>";
+const ICON = {
+  chev: svgI('<path d="M9 6l6 6-6 6"/>'),
+  edit: svgI('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>'),
+  arch: svgI('<rect x="3" y="3" width="18" height="5" rx="1"/><path d="M5 8v11a2 2 0 002 2h10a2 2 0 002-2V8"/><path d="M10 12h4"/>'),
+  trash: svgI('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/>')
+};
+const ffull = iso => { if (!iso) return "—"; const d = new Date(iso); return d.toLocaleDateString("pt-BR") + ", " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); };
+function slug(nome) {
+  const t = normName(nome).replace(/ /g, "-").replace(/-+/g, "-").slice(0, 28).replace(/^-+|-+$/g, "");
+  return (t || "evento") + "-" + Math.random().toString(36).slice(2, 6);
+}
+function evMetrics(ev) {
+  const d = S.evData[ev.id] || { ins: [], gastos: [] }, segs = ev.segmentos || [];
+  const ing = d.ins.filter(r => r.sub === "Ingresso");
+  const rec = sum(ing, r => r.valor), presentes = ing.filter(r => r.checkinEm).length;
+  const invCats = (ev.categorias || []).map(c => c.nome).filter(n => normName(n).includes("trafego"));
+  const inv = invCats.length ? sum(d.gastos.filter(g => invCats.includes(g.categoria)), g => g.valor) : null;
+  return { insc: ing.length, presentes, rec, inv, gasto: sum(d.gastos, g => g.valor), roas: inv > 0 ? rec / inv : null, loaded: S.got.has(ev.id + ":ins") };
+}
+function viewHome() {
+  const evs = S.events.slice().sort((a, b) => (b.data || "").localeCompare(a.data || "") || (b.criadoEm || "").localeCompare(a.criadoEm || ""));
+  const arc = evs.filter(e => e.arquivado), list = S.showArch ? evs : evs.filter(e => !e.arquivado);
+  const card = ev => {
+    const m = evMetrics(ev), dt = [];
+    if (ev.data) { dt.push(fdate(ev.data)); const dd = Math.round((new Date(ev.data + "T12:00:00") - new Date()) / 86400000); dt.push(dd > 0 ? "faltam " + dd + " dias" : dd === 0 ? "é hoje" : "há " + (-dd) + " dias"); }
+    if (ev.arquivado) dt.push("arquivado");
+    const dash = m.loaded ? null : "…";
+    const invLabel = m.inv == null ? "Gastos" : "Investimento · ROAS " + (m.roas == null ? "—" : m.roas.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    return '<div class="ev' + (ev.arquivado ? " arch" : "") + '" data-open="' + esc(ev.id) + '"><div class="top"><h3 title="' + esc(ev.nome) + '">' + esc(ev.nome) + "</h3>" + ICON.chev + '</div><div class="dt">' + esc(dt.join(" · ")) + "</div>" +
+      '<div class="mx"><div><div class="l">Inscritos</div><div class="v">' + (dash || int(m.insc)) + '</div></div><div><div class="l">Check-in</div><div class="v">' + (dash || int(m.presentes) + " / " + int(m.insc)) + "</div></div>" +
+      '<div><div class="l">Faturamento</div><div class="v">' + (dash || money(m.rec)) + '</div></div><div><div class="l">' + esc(invLabel) + '</div><div class="v">' + (dash || money(m.inv == null ? m.gasto : m.inv)) + "</div></div></div>" +
+      '<div class="ft"><span>Último registro: ' + esc(ffull(ev.ultimaAtividade || ev.criadoEm)) + '</span><span class="ic"><button class="ibtn" data-ev-edit="' + esc(ev.id) + '" title="Editar nome e data"' + (S.canWrite ? "" : " disabled") + ">" + ICON.edit + '</button><button class="ibtn" data-ev-arc="' + esc(ev.id) + '" title="' + (ev.arquivado ? "Restaurar" : "Arquivar") + '"' + (S.canWrite ? "" : " disabled") + ">" + ICON.arch + '</button><button class="ibtn red" data-ev-del="' + esc(ev.id) + '" title="Excluir"' + (S.canWrite ? "" : " disabled") + ">" + ICON.trash + "</button></span></div></div>";
+  };
+  return '<div class="pghead"><div><h1>Eventos</h1><div class="sub" style="font-size:14px">Cada evento tem o seu painel, check-in, inscritos, gastos, almoço e configurações.</div></div><button class="btn" id="newEvent"' + (S.canWrite ? "" : " disabled") + ">+ Novo evento</button></div>" +
+    (list.length ? '<div class="cards">' + list.map(card).join("") + "</div>" : '<div class="card empty">Nenhum evento ainda. Crie o primeiro em “Novo evento”.</div>') +
+    (arc.length ? '<div style="margin-top:16px"><button class="pill" id="togArch">' + (S.showArch ? "Ocultar arquivados" : "Mostrar arquivados (" + arc.length + ")") + "</button></div>" : "");
+}
+function eventForm(ev) {
+  const isNew = !ev, evs = S.events.slice().sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+  if (isNew) {
+    openForm({
+      title: "Novo evento", okLabel: "Criar evento", values: { nome: "", data: "", copiar: evs[0] ? evs[0].id : "", valores: "sim" },
+      fields: [
+        { key: "nome", label: "Nome do evento", wide: true }, { key: "data", label: "Data do evento", type: "date", wide: true },
+        { key: "copiar", label: "Começar a partir de", type: "select", wide: true, options: [opt("", "Em branco (origens padrão, sem categorias)")].concat(evs.map(e => opt(e.id, "Copiar estrutura de: " + e.nome))) },
+        { key: "valores", label: "Metas e budgets", type: "select", wide: true, options: [opt("sim", "Manter os valores do evento copiado (ajuste depois)"), opt("nao", "Zerar metas e budgets")], hint: "Vale só quando copiar de outro evento. Inscritos, gastos e check-in nunca são copiados." }
+      ],
+      validate: v => !v.nome.trim() ? "Informe o nome do evento." : null,
+      onSave: async v => {
+        const id = slug(v.nome), src = v.copiar ? S.events.find(e => e.id === v.copiar) : null, now = new Date().toISOString();
+        let segs = JSON.parse(JSON.stringify(SEG_DEF)), cats = [], taxa = 0.03;
+        if (src) { segs = JSON.parse(JSON.stringify(src.segmentos || [])); cats = JSON.parse(JSON.stringify(src.categorias || [])); taxa = +src.taxaPrevista || 0.03; if (v.valores === "nao") { segs.forEach(g => { g.metas = [0, 0, 0]; }); cats.forEach(c => { c.budget = 0; }); } }
+        const ok = await run(() => S.db.doc("eventos/" + id).set({ nome: v.nome.trim(), data: v.data || "", local: "", taxaPrevista: taxa, segmentos: segs, categorias: cats, arquivado: false, criadoEm: now, ultimaAtividade: now }), "Evento criado");
+        if (ok) setTimeout(() => { location.hash = id + "--" + (src ? "painel" : "config"); }, 50);
+        return ok;
+      }
+    });
+  } else {
+    openForm({
+      title: "Editar evento", values: { nome: ev.nome, data: ev.data || "", local: ev.local || "" },
+      fields: [{ key: "nome", label: "Nome do evento", wide: true }, { key: "data", label: "Data", type: "date" }, { key: "local", label: "Local" }],
+      validate: v => !v.nome.trim() ? "Informe o nome do evento." : null,
+      onSave: v => run(() => S.db.doc("eventos/" + ev.id).update({ nome: v.nome.trim(), data: v.data || "", local: v.local.trim() }), "Evento atualizado")
+    });
+  }
+}
+function deleteEventForm(ev) {
+  const d = S.evData[ev.id] || { ins: [], gastos: [], adesp: [] };
+  openForm({
+    title: "Excluir evento", okLabel: "Excluir para sempre", values: { conf: "" },
+    fields: [{ key: "conf", label: "Digite EXCLUIR para confirmar", wide: true, hint: "Isso apaga “" + ev.nome + "” e todos os lançamentos dele: " + d.ins.length + " inscritos, " + d.gastos.length + " gastos e as contas do almoço. Não dá para desfazer." }],
+    validate: v => v.conf.trim().toUpperCase() !== "EXCLUIR" ? "Digite EXCLUIR para confirmar." : null,
+    onSave: async () => {
+      const base = "eventos/" + ev.id;
+      const del = async path => { for (let i = 0; i < 4; i++) { try { await S.db.doc(path).delete(); return; } catch (e) { if (e && e.code === "resource_exhausted" && i < 3) await new Promise(r => setTimeout(r, 900)); else throw e; } } };
+      toast("Excluindo…");
+      const ok = await run(async () => {
+        for (const c of ["inscritos", "gastos", "almoco_despesas"]) { const snap = await S.db.collection(base + "/" + c).get(); for (const x of snap.docs) await del(base + "/" + c + "/" + x.id); }
+        await del(base + "/almoco/receita"); await del(base);
+      }, "Evento excluído");
+      return ok;
+    }
+  });
+}
+
+/* ---- Painel ---- */
+function metaBar(o) {
+  const max = Math.max(...o.marks.map(m => m.v), o.parts.reduce((a, p) => a + p.v, 0), 1) * 1.1;
+  const L = v => Math.min(100, v / max * 100);
+  const real = o.parts.reduce((a, p) => a + p.v, 0);
+  return '<div class="mb"><div class="lbl"><span>' + esc(o.label) + "</span><b>" + o.fmt(real) + "</b></div>" +
+    '<div class="track">' + o.parts.map(p => '<span class="seg ' + p.cls + '" style="width:' + (p.v / max * 100) + '%" title="' + esc(p.t) + '"></span>').join("") + "</div>" +
+    o.marks.map(m => '<div class="mark' + (real >= m.v && m.v > 0 ? " hit" : "") + '" style="left:' + L(m.v) + '%"><span>' + esc(m.t) + "<b>" + (o.fmtMark || o.fmt)(m.v) + "</b></span></div>").join("") + "</div>";
+}
+function viewPainel() {
+  const c = calc(), cfg = c.cfg;
+  const sc = n => n < 0 ? "neg" : "pos";
+  const ckAll = S.ins.filter(r => r.sub === "Ingresso"), ckIn = ckAll.filter(r => r.checkinEm);
+  const kp = '<div class="grid kpis">' +
+    '<div class="card kpi"><div class="l">Inscritos</div><div class="v">' + int(c.tot.real) + '</div><div class="s">' + int(c.free.real) + " free · " + int(c.pago.real) + " pagos</div></div>" +
+    '<div class="card kpi"><div class="l">Receita de ingressos</div><div class="v">' + money(c.recReal) + '</div><div class="s">Meta mínima ' + money(c.recMeta[0]) + "</div></div>" +
+    '<div class="card kpi"><div class="l">Gasto real</div><div class="v">' + money(c.gastoReal) + '</div><div class="s">Budget ' + money(c.budgetTot) + "</div></div>" +
+    '<div class="card kpi"><div class="l">Check-in</div><div class="v">' + int(ckIn.length) + "/" + int(ckAll.length) + '</div><div class="s">' + pct(ckAll.length ? ckIn.length / ckAll.length : null) + ' presentes · <a href="#' + S.eid + '--checkin">abrir</a></div></div>' +
+    '<div class="card kpi"><div class="l">Resultado atual</div><div class="v ' + sc(c.resReal) + '">' + money(c.resReal) + '</div><div class="s">Receita real − gasto real</div></div></div>';
+
+  const legend = '<div class="legend"><span><i style="background:var(--free)"></i>Free</span><span><i style="background:var(--pago)"></i>Pagos</span></div>';
+  const bars = metaBar({ label: "Inscritos (total)", fmt: int, parts: [{ v: c.free.real, cls: "free", t: "Free" }, { v: c.pago.real, cls: "pago", t: "Pagos" }], marks: METAS.map((m, i) => ({ v: c.tot.metas[i], t: m })) }) +
+    metaBar({ label: "Inscritos pagos", fmt: int, parts: [{ v: c.pago.real, cls: "pago", t: "Pagos" }], marks: METAS.map((m, i) => ({ v: c.pago.metas[i], t: m })) });
+
+  const hdr = "<tr><th></th><th>Ticket</th><th>Real</th>" + METAS.map(m => "<th>" + m + "</th>").join("") + "</tr>";
+  const segRow = s => '<tr><td>' + esc(s.nome) + '</td><td class="r">' + money(s.ticket) + '</td><td class="c"><b>' + int(s.real) + "</b></td>" + s.metas.map(m => '<td class="c">' + int(m) + "</td>").join("") + "</tr>";
+  const sumRow = (lbl, g) => '<tr class="sub"><td>' + lbl + '</td><td></td><td class="c">' + int(g.real) + "</td>" + g.metas.map(m => '<td class="c">' + int(m) + "</td>").join("") + "</tr>";
+  const pr = (lbl, base, kind) => '<tr><td>' + lbl + "</td><td></td><td></td>" + [0, 1, 2].map(i => {
+    const meta = base.metas[i];
+    if (kind === "pct") { const p = meta ? base.real / meta : null; return '<td class="c ' + (p != null && p >= 1 ? "ok" : "") + '">' + pct(p) + "</td>"; }
+    return '<td class="c">' + int(Math.max(meta - base.real, 0)) + "</td>";
+  }).join("") + "</tr>";
+  const tbl = '<div class="scroll"><table class="tbl">' + hdr +
+    '<tr class="band"><td colspan="6">FREE (sem cobrança)</td></tr>' + c.free.rows.map(segRow).join("") + sumRow("Total Free", c.free) +
+    '<tr class="band"><td colspan="6">PAGOS</td></tr>' + c.pago.rows.map(segRow).join("") + sumRow("Total Pagos", c.pago) +
+    '<tr class="tot"><td>TOTAL INSCRITOS</td><td></td><td class="c">' + int(c.tot.real) + "</td>" + c.tot.metas.map(m => '<td class="c">' + int(m) + "</td>").join("") + "</tr>" +
+    pr("% da meta atingida (total)", c.tot, "pct") + pr("Faltam para a meta (total)", c.tot, "gap") +
+    pr("% da meta de pagos atingida", c.pago, "pct") + pr("Faltam pagos para a meta", c.pago, "gap") + "</table></div>";
+  const insCard = '<div class="card"><h2>Inscritos · Free × Pagos<small>' + int(c.tot.real) + " no total</small></h2>" + bars + legend + '<div style="height:10px"></div>' + tbl + "</div>";
+
+  // receita
+  const rrow = (lbl, real, metas, f, cls) => '<tr class="' + (cls || "") + '"><td>' + lbl + '</td><td class="r">' + f(real) + "</td>" + metas.map(m => '<td class="r">' + f(m) + "</td>").join("") + "</tr>";
+  const tm = (rec, n) => n ? rec / n : null;
+  const tmF = v => v == null ? "—" : money(v);
+  const pRec = c.recMeta.map(m => m ? c.recReal / m : null);
+  const recTbl = '<div class="scroll"><table class="tbl"><tr><th></th><th>Real</th>' + METAS.map(m => "<th>" + m + "</th>").join("") + "</tr>" +
+    rrow("Receita total", c.recReal, c.recMeta, money) +
+    rrow("Fee Stripe (" + pct(c.taxa) + " previsto)", c.feeReal, c.feeMeta, money) +
+    rrow("Receita líquida", c.liqReal, c.liqMeta, money, "tot") +
+    rrow("Ticket médio (receita ÷ inscritos)", tm(c.recReal, c.tot.real), c.recMeta.map((m, i) => tm(m, c.tot.metas[i])), tmF) +
+    rrow("Ticket médio dos pagos", tm(c.recReal, c.pago.real), c.recMeta.map((m, i) => tm(m, c.pago.metas[i])), tmF) +
+    '<tr><td>% da meta de receita</td><td></td>' + pRec.map(p => '<td class="r ' + (p != null && p >= 1 ? "ok" : "") + '">' + pct(p) + "</td>").join("") + "</tr>" +
+    '<tr><td>Faltam para a meta</td><td></td>' + c.recMeta.map(m => '<td class="r">' + money(Math.max(m - c.recReal, 0)) + "</td>").join("") + "</tr></table></div>";
+  const recBar = metaBar({ label: "Receita de ingressos", fmt: money, fmtMark: moneyK, parts: [{ v: c.recReal, cls: "rec", t: "Receita" }], marks: METAS.map((m, i) => ({ v: c.recMeta[i], t: m })) });
+  const recCard = '<div class="card"><h2>Receita · real × metas</h2>' + recBar + '<div style="height:6px"></div>' + recTbl + "</div>";
+
+  // gastos
+  const gRows = c.cats.map(k => {
+    const p = k.budget ? k.real / k.budget : null, cl = p == null ? "" : p > 1 ? "bad" : p > 0.9 ? "warn" : "";
+    return "<tr><td>" + esc(k.nome) + '</td><td class="r">' + money(k.real) + '</td><td class="r">' + (k.budget ? money(k.budget) : "—") + '</td><td style="min-width:110px">' +
+      (p == null ? "" : '<div class="bar"><i class="' + cl + '" style="width:' + Math.min(100, p * 100) + '%"></i></div>') + '</td><td class="c ' + (cl === "bad" ? "bad" : "") + '">' + pct(p) + '</td><td class="r ' + (k.budget && k.real > k.budget ? "bad" : "") + '">' + (k.budget ? money(k.budget - k.real) : "—") + "</td></tr>";
+  }).join("");
+  const gTbl = '<div class="scroll"><table class="tbl"><tr><th>Categoria</th><th>Real</th><th>Budget</th><th></th><th>% usado</th><th>Saldo</th></tr>' +
+    (gRows || '<tr><td colspan="6" class="empty">Cadastre as categorias em Metas e Budget.</td></tr>') +
+    '<tr class="tot"><td>TOTAL</td><td class="r">' + money(c.gastoReal) + '</td><td class="r">' + money(c.budgetTot) + '</td><td></td><td class="c">' + pct(c.budgetTot ? c.gastoReal / c.budgetTot : null) + '</td><td class="r">' + money(c.budgetTot - c.gastoReal) + "</td></tr></table></div>";
+  const gCard = '<div class="card"><h2>Gastos × Budget<small>vermelho = estourou · amarelo = acima de 90%</small></h2>' + gTbl + "</div>";
+
+  // resultado
+  const rc = (h, n, m) => '<div class="c"><div class="h">' + h + '</div><div class="n ' + sc(n) + '">' + money(n) + '</div><div class="m">' + m + "</div></div>";
+  const resCard = '<div class="card"><h2>Resultado do evento<small>meta = receita da meta − budget total</small></h2><div class="res">' +
+    rc("Real hoje", c.resReal, "Receita " + money(c.recReal) + "<br>Gasto " + money(c.gastoReal)) +
+    METAS.map((m, i) => rc("Meta " + m, c.resMeta[i], "Receita " + money(c.recMeta[i]) + "<br>Budget " + money(c.budgetTot))).join("") + "</div></div>";
+
+  // alertas
+  const al = [];
+  if (Math.abs(c.gastoSemCat) > 0.005) al.push("Há " + money(c.gastoSemCat) + " em gastos sem categoria válida (aba Gastos).");
+  if (c.semOrigem) al.push(c.semOrigem + " ingresso(s) sem origem válida (aba Inscritos).");
+  const odd = S.ins.filter(r => r.sub !== "Ingresso" && r.sub !== "Reembolso").length;
+  if (odd) al.push(odd + " lançamento(s) com subcategoria que não é Ingresso nem Reembolso e por isso não entram nas contas.");
+  const alCard = al.length ? '<div class="banner warn">' + al.map(esc).join("<br>") + "</div>" : "";
+
+  const lun = '<div class="card"><h2>Almoço (terceirizado)<small>separado das metas e do resultado</small></h2><div class="note">Saldo do almoço: <b style="color:var(--' + (c.al.saldo < 0 ? "bad" : "ink") + ')">' + money(c.al.saldo) + "</b> · receita líquida " + money(c.al.liq) + " · despesas " + money(c.al.desp) + ' · <a href="#' + S.eid + '--almoco">abrir aba Almoço</a></div></div>';
+
+  return alCard + kp + resCard + '<div class="two"><div>' + insCard + '</div><div>' + recCard + "</div></div>" + gCard + lun;
+}
+
+/* ---- Check-in ---- */
+function viewCheckin() {
+  const f = S.fChk, all = S.ins.filter(r => r.sub === "Ingresso");
+  const isFree = r => segTipo(r.origem) === "free";
+  const inn = all.filter(r => r.checkinEm), fr = all.filter(isFree), pg = all.filter(r => !isFree(r));
+  const frIn = fr.filter(r => r.checkinEm).length, pgIn = pg.filter(r => r.checkinEm).length;
+  const tot = all.length || 1;
+  let rows = all.slice();
+  if (f.f === "faltam") rows = rows.filter(r => !r.checkinEm);
+  else if (f.f === "presentes") rows = rows.filter(r => r.checkinEm);
+  if (f.q) { const q = normName(f.q); rows = rows.filter(r => normName(r.cliente).includes(q)); }
+  rows.sort(f.f === "presentes" ? (a, b) => (b.checkinEm || "").localeCompare(a.checkinEm || "") : (a, b) => normName(a.cliente).localeCompare(normName(b.cliente)));
+  const kp = '<div class="grid kpis ck3"><div class="card kpi"><div class="l">Presentes</div><div class="v">' + int(inn.length) + " / " + int(all.length) + '</div><div class="s">' + pct(all.length ? inn.length / all.length : null) + ' · faltam ' + int(all.length - inn.length) + "</div>" +
+    '<div class="ckbar"><span class="seg free" style="width:' + (frIn / tot * 100) + '%"></span><span class="seg pago" style="width:' + (pgIn / tot * 100) + '%"></span></div></div>' +
+    '<div class="card kpi"><div class="l">Pagos</div><div class="v">' + int(pgIn) + " / " + int(pg.length) + '</div><div class="s">presentes</div></div>' +
+    '<div class="card kpi"><div class="l">Free</div><div class="v">' + int(frIn) + " / " + int(fr.length) + '</div><div class="s">presentes</div></div></div>';
+  const pill = (k, t) => '<button class="pill ' + (f.f === k ? "on" : "") + '" data-ckf="' + k + '">' + t + "</button>";
+  const list = rows.map(r => {
+    const tp = segTipo(r.origem), done = !!r.checkinEm;
+    return '<div class="ck' + (done ? " in" : "") + '"><div class="nm"><b>' + esc(r.cliente) + "</b><span>" + (r.origem ? esc(r.origem) + " " : "") + (tp ? '<span class="badge ' + tp + '">' + (tp === "free" ? "Free" : "Pago") + "</span>" : "") +
+      (done ? " · presente às " + esc(ftime(r.checkinEm)) : "") + "</span></div>" +
+      (done ? '<button class="btn ghost" data-unck="' + esc(r.id) + '"' + (S.canWrite ? "" : " disabled") + ">Desfazer</button>" : '<button class="btn" data-ck="' + esc(r.id) + '"' + (S.canWrite ? "" : " disabled") + ">Check-in</button>") + "</div>";
+  }).join("");
+  const refund = S.ins.filter(r => r.sub === "Reembolso").length;
+  return kp + '<input class="searchbig" id="qChk" placeholder="Buscar participante pelo nome…" value="' + esc(f.q) + '" autocomplete="off">' +
+    '<div class="toolbar"><div class="pills">' + pill("faltam", "Faltam (" + (all.length - inn.length) + ")") + pill("presentes", "Presentes (" + inn.length + ")") + pill("todos", "Todos (" + all.length + ")") + '</div><span class="sp"></span><button class="btn ghost" id="walkIn"' + (S.canWrite ? "" : " disabled") + ">+ Inscrito na porta</button></div>" +
+    (list || '<div class="card empty">' + (all.length ? "Ninguém encontrado nesse filtro." : "Nenhum inscrito ainda.") + "</div>") +
+    (refund ? '<div class="note" style="margin-top:8px">' + refund + " reembolso(s) não aparecem na lista.</div>" : "");
+}
+
+/* ---- Inscritos ---- */
+function segTipo(nome) { const s = (cfgNow().segmentos || []).find(x => x.nome === nome); return s ? s.tipo : null; }
+function viewInscritos() {
+  const cfg = cfgNow(), f = S.fIns;
+  let rows = S.ins.slice().sort((a, b) => (b.dataProc || "").localeCompare(a.dataProc || "") || (b.seq || 0) - (a.seq || 0));
+  const total = rows.length;
+  if (f.seg) rows = rows.filter(r => (f.seg === "_sem" ? !(cfg.segmentos || []).some(s => s.nome === r.origem) : r.origem === f.seg));
+  if (f.q) { const q = normName(f.q); rows = rows.filter(r => normName(r.cliente).includes(q)); }
+  const cnt = n => S.ins.filter(r => r.sub === "Ingresso" && r.origem === n).length;
+  const pills = '<button class="pill ' + (!f.seg ? "on" : "") + '" data-seg="">Todos (' + total + ")</button>" +
+    (cfg.segmentos || []).map(s => '<button class="pill ' + (f.seg === s.nome ? "on" : "") + '" data-seg="' + esc(s.nome) + '">' + esc(s.nome) + " · " + (s.tipo === "free" ? "Free" : "Pago") + " (" + cnt(s.nome) + ")</button>").join("");
+  const body = rows.map(r => {
+    const tp = segTipo(r.origem);
+    return '<tr class="click" data-edit-ins="' + esc(r.id) + '"><td>' + fdate(r.dataProc) + '</td><td class="wrapc">' + esc(r.cliente) + "</td><td>" + (r.origem ? esc(r.origem) + " " : "") +
+      (tp ? '<span class="badge ' + tp + '">' + (tp === "free" ? "Free" : "Pago") + "</span>" : '<span class="badge bad">sem origem</span>') + '</td><td class="r">' + money(r.valor) + '</td><td class="r">' + money(r.taxa) + '</td><td class="r">' + money((+r.valor || 0) - (+r.taxa || 0)) + "</td><td>" +
+      (r.sub === "Reembolso" ? '<span class="badge bad">Reembolso</span>' : r.sub === "Ingresso" ? "Ingresso" : '<span class="badge warn">' + esc(r.sub) + "</span>") + "</td><td>" + esc(r.conta) + "</td><td>" + (r.checkinEm ? '<span class="badge ok">' + esc(ftime(r.checkinEm)) + "</span>" : "") + "</td></tr>";
+  }).join("");
+  return '<div class="toolbar"><div class="pills">' + pills + '</div><span class="sp"></span><input class="search" id="qIns" placeholder="Buscar cliente…" value="' + esc(f.q) + '"><button class="btn" id="newIns"' + (S.canWrite ? "" : " disabled") + ">+ Novo inscrito</button></div>" +
+    '<div class="card"><div class="scroll"><table class="tbl"><tr><th>Data</th><th style="text-align:left">Cliente</th><th>Origem</th><th>Valor</th><th>Taxa</th><th>Líquido</th><th>Tipo</th><th>Conta</th><th>Check-in</th></tr>' +
+    (body || '<tr><td colspan="9" class="empty">Nenhum lançamento encontrado.</td></tr>') + "</table></div></div>";
+}
+function insForm(rec, o2) {
+  o2 = o2 || {};
+  const cfg = cfgNow(), segs = cfg.segmentos || [], isNew = !rec;
+  const v0 = rec || { cliente: "", origem: (segs.find(s => s.tipo === "pago") || segs[0] || {}).nome || "", sub: "Ingresso", conta: "Stripe", dataProc: todayISO(), dataReceb: "", valor: "", taxa: "" };
+  if (isNew) { const s = segs.find(x => x.nome === v0.origem); v0.valor = s ? (+s.ticket || 0) : 0; v0.taxa = stripeFee(v0.valor); }
+  const contas = Array.from(new Set(["Stripe", "Zelle", "Cash"].concat(S.ins.map(r => r.conta).filter(Boolean))));
+  let taxaDirty = !isNew, valorDirty = !isNew;
+  openForm({
+    title: isNew ? (o2.checkin ? "Novo inscrito · check-in imediato" : "Novo inscrito") : "Editar inscrito", values: v0,
+    fields: [
+      { key: "cliente", label: "Cliente", wide: true },
+      { key: "origem", label: "Origem", type: "select", options: segs.map(s => opt(s.nome, s.nome + " (" + (s.tipo === "free" ? "Free" : "Pago") + ")")).concat(segs.some(s => s.nome === v0.origem) || !v0.origem ? [] : [opt(v0.origem, v0.origem + " (sem origem válida)")]) },
+      { key: "sub", label: "Tipo de lançamento", type: "select", options: [opt("Ingresso"), opt("Reembolso")].concat(["Ingresso", "Reembolso"].includes(v0.sub) ? [] : [opt(v0.sub)]) },
+      { key: "valor", label: "Valor total ($)", type: "number", step: "0.01" },
+      { key: "taxa", label: "Taxa ($)", type: "number", step: "0.01", hint: "Stripe: 2,9% + $ 0,30 (sugestão)" },
+      { key: "conta", label: "Conta", list: "dlConta" },
+      { key: "dataProc", label: "Data de processamento", type: "date" },
+      { key: "dataReceb", label: "Data de recebimento", type: "date" }
+    ],
+    datalists: '<datalist id="dlConta">' + contas.map(c => '<option value="' + esc(c) + '">').join("") + "</datalist>",
+    validate: v => !v.cliente.trim() ? "Informe o nome do cliente." : null,
+    onSave: v => run(async () => {
+      const data = { cliente: v.cliente.trim(), origem: v.origem, sub: v.sub, valor: r2(num(v.valor)), taxa: r2(num(v.taxa)), conta: v.conta.trim(), dataProc: v.dataProc || "", dataReceb: v.dataReceb || "" };
+      if (isNew) { data.seq = Date.now(); data.criadoEm = new Date().toISOString(); if (o2.checkin) data.checkinEm = new Date().toISOString(); await S.db.collection(P("inscritos")).add(data); }
+      else await S.db.doc(P("inscritos/" + rec.id)).set({ ...clean(rec), ...data });
+    }, "Salvo"),
+    onDelete: isNew ? null : () => run(() => S.db.doc(P("inscritos/" + rec.id)).delete(), "Excluído"),
+    onReady: q => {
+      const org = q("#f_origem"), val = q("#f_valor"), tax = q("#f_taxa"), conta = q("#f_conta"), sub = q("#f_sub");
+      const auto = () => {
+        if (!taxaDirty) tax.value = (conta.value.trim().toLowerCase() === "stripe") ? stripeFee(num(val.value)) : 0;
+      };
+      org.onchange = () => { if (!valorDirty) { const s = segs.find(x => x.nome === org.value); val.value = s ? (+s.ticket || 0) : 0; } auto(); };
+      sub.onchange = () => { if (sub.value === "Reembolso" && !valorDirty) { val.value = 0; } };
+      val.oninput = () => { valorDirty = true; auto(); };
+      tax.oninput = () => { taxaDirty = true; };
+      conta.oninput = auto;
+    }
+  });
+}
+
+/* ---- Gastos ---- */
+function viewGastos() {
+  const cfg = cfgNow(), f = S.fGas;
+  let rows = S.gastos.slice().sort((a, b) => (b.dataPag || "").localeCompare(a.dataPag || "") || (b.seq || 0) - (a.seq || 0));
+  if (f.cat) rows = rows.filter(r => r.categoria === f.cat);
+  if (f.st) rows = rows.filter(r => r.status === f.st);
+  if (f.q) { const q = normName(f.q); rows = rows.filter(r => normName(r.fornecedor + " " + (r.obs || "")).includes(q)); }
+  const tot = sum(S.gastos, g => g.valor), pago = sum(S.gastos.filter(g => g.status === "Pago"), g => g.valor), pend = sum(S.gastos.filter(g => g.status === "Pendente" || g.status === "Atrasado"), g => g.valor);
+  const stb = s => s === "Pago" ? '<span class="badge ok">Pago</span>' : s === "Pendente" ? '<span class="badge warn">Pendente</span>' : s === "Atrasado" ? '<span class="badge bad">Atrasado</span>' : esc(s);
+  const body = rows.map(g => '<tr class="click" data-edit-gas="' + esc(g.id) + '"><td>' + fdate(g.dataPag) + '</td><td class="wrapc">' + esc(g.fornecedor) + "</td><td>" + (g.categoria && (cfg.categorias || []).some(c => c.nome === g.categoria) ? esc(g.categoria) : '<span class="badge bad">' + esc(g.categoria || "sem categoria") + "</span>") + '</td><td class="r">' + money(g.valor) + "</td><td>" + esc(g.forma) + "</td><td>" + stb(g.status) + '</td><td class="wrapc">' + esc(g.obs) + "</td></tr>").join("");
+  return '<div class="grid kpis"><div class="card kpi"><div class="l">Total lançado</div><div class="v">' + money(tot) + '</div><div class="s">' + S.gastos.length + ' lançamentos</div></div><div class="card kpi"><div class="l">Pago</div><div class="v">' + money(pago) + '</div></div><div class="card kpi"><div class="l">Pendente / atrasado</div><div class="v">' + money(pend) + "</div></div></div>" +
+    '<div class="toolbar"><select id="fCat"><option value="">Todas as categorias</option>' + (cfg.categorias || []).map(c => '<option ' + (f.cat === c.nome ? "selected " : "") + 'value="' + esc(c.nome) + '">' + esc(c.nome) + "</option>").join("") + '</select><select id="fSt"><option value="">Todos os status</option>' + ["Pago", "Pendente", "Atrasado", "-"].map(s => '<option ' + (f.st === s ? "selected " : "") + 'value="' + s + '">' + s + "</option>").join("") + '</select><input class="search" id="qGas" placeholder="Buscar fornecedor ou observação…" value="' + esc(f.q) + '"><span class="sp"></span><button class="btn" id="newGas"' + (S.canWrite ? "" : " disabled") + ">+ Novo gasto</button></div>" +
+    '<div class="card"><div class="scroll"><table class="tbl"><tr><th>Data</th><th style="text-align:left">Fornecedor</th><th>Categoria</th><th>Valor</th><th>Forma</th><th>Status</th><th style="text-align:left">Obs.</th></tr>' + (body || '<tr><td colspan="7" class="empty">Nenhum gasto lançado.</td></tr>') + "</table></div></div>";
+}
+function gasForm(rec) {
+  const cfg = cfgNow(), isNew = !rec, cats = (cfg.categorias || []).map(c => c.nome);
+  const v0 = rec || { fornecedor: "", categoria: cats[0] || "", valor: "", dataPag: todayISO(), forma: "", status: "Pago", obs: "" };
+  const formas = Array.from(new Set(S.gastos.map(g => g.forma).filter(Boolean)));
+  openForm({
+    title: isNew ? "Novo gasto" : "Editar gasto", values: v0,
+    fields: [
+      { key: "fornecedor", label: "Fornecedor", wide: true },
+      { key: "categoria", label: "Categoria", type: "select", options: cats.map(c => opt(c)).concat(cats.includes(v0.categoria) || !v0.categoria ? [] : [opt(v0.categoria, v0.categoria + " (fora da lista)")]) },
+      { key: "valor", label: "Valor ($)", type: "number", step: "0.01" },
+      { key: "dataPag", label: "Data de pagamento", type: "date" },
+      { key: "status", label: "Status", type: "select", options: ["Pago", "Pendente", "Atrasado", "-"].map(s => opt(s)) },
+      { key: "forma", label: "Forma de pagamento", list: "dlForma", wide: true },
+      { key: "obs", label: "Observações", type: "textarea", wide: true }
+    ],
+    datalists: '<datalist id="dlForma">' + formas.map(c => '<option value="' + esc(c) + '">').join("") + "</datalist>",
+    validate: v => !v.fornecedor.trim() ? "Informe o fornecedor." : !v.categoria ? "Escolha a categoria (cadastre em Metas e Budget)." : null,
+    onSave: v => run(async () => {
+      const data = { fornecedor: v.fornecedor.trim(), categoria: v.categoria, valor: r2(num(v.valor)), dataPag: v.dataPag || "", status: v.status, forma: v.forma.trim(), obs: v.obs.trim() };
+      if (isNew) { data.seq = Date.now(); await S.db.collection(P("gastos")).add(data); }
+      else await S.db.doc(P("gastos/" + rec.id)).set({ ...clean(rec), ...data });
+    }, "Salvo"),
+    onDelete: isNew ? null : () => run(() => S.db.doc(P("gastos/" + rec.id)).delete(), "Excluído")
+  });
+}
+
+/* ---- Almoço ---- */
+function viewAlmoco() {
+  const c = calc(), a = c.al;
+  const lin = a.linhas.map((l, i) => '<tr><td>' + esc(l.forma) + '</td><td class="c"><input class="num in" type="number" min="0" step="1" data-al="qtd" data-i="' + i + '" value="' + (+l.qtd || "") + '"></td><td class="c"><input class="num in" type="number" min="0" step="0.01" data-al="preco" data-i="' + i + '" value="' + (+l.preco || "") + '"></td><td class="r" id="alB' + i + '">' + money((+l.qtd || 0) * (+l.preco || 0)) + '</td><td class="c"><input class="num in" type="number" min="0" step="0.01" data-al="taxa" data-i="' + i + '" value="' + (+l.taxa || "") + '"></td><td class="r" id="alL' + i + '">' + money((+l.qtd || 0) * (+l.preco || 0) - (+l.taxa || 0)) + "</td></tr>").join("");
+  const desp = S.adesp.slice().sort((x, y) => (y.dataPag || "").localeCompare(x.dataPag || "") || (y.seq || 0) - (x.seq || 0));
+  const stb = s => s === "Pago" ? '<span class="badge ok">Pago</span>' : s === "Pendente" ? '<span class="badge warn">Pendente</span>' : s === "Atrasado" ? '<span class="badge bad">Atrasado</span>' : esc(s);
+  const dBody = desp.map(d => '<tr class="click" data-edit-adesp="' + esc(d.id) + '"><td>' + fdate(d.dataPag) + '</td><td class="wrapc">' + esc(d.descricao) + "</td><td>" + esc(d.fornecedor) + '</td><td class="r">' + money(d.valor) + "</td><td>" + stb(d.status) + '</td><td class="wrapc">' + esc(d.obs) + "</td></tr>").join("");
+  return '<div class="banner warn" style="background:var(--sub);color:var(--muted)">O almoço é terceirizado e tem contabilidade separada: não entra nas metas nem no resultado do evento.</div>' +
+    '<div class="card"><h2>Receita do almoço<button class="btn small" id="saveAl"' + (S.canWrite ? "" : " disabled") + ">Salvar receita</button></h2><div class=\"scroll\"><table class=\"tbl\"><tr><th style=\"text-align:left\">Forma de pagamento</th><th>Qtd vendida</th><th>Preço unitário</th><th>Receita bruta</th><th>Taxa (Stripe)</th><th>Receita líquida</th></tr>" + lin +
+    '<tr class="tot"><td>TOTAL</td><td class="c" id="alQ">' + int(a.qtd) + '</td><td></td><td class="r" id="alTB">' + money(a.bruta) + '</td><td class="r" id="alTT">' + money(a.taxa) + '</td><td class="r" id="alTL">' + money(a.liq) + "</td></tr></table></div></div>" +
+    '<div class="card"><h2>Despesas do almoço<button class="btn small" id="newAdesp"' + (S.canWrite ? "" : " disabled") + ">+ Nova despesa</button></h2><div class=\"scroll\"><table class=\"tbl\"><tr><th>Data</th><th style=\"text-align:left\">Descrição</th><th>Fornecedor</th><th>Valor</th><th>Status</th><th style=\"text-align:left\">Obs.</th></tr>" +
+    (dBody || '<tr><td colspan="6" class="empty">Nenhuma despesa lançada.</td></tr>') + '<tr class="tot"><td colspan="3">TOTAL DESPESAS</td><td class="r">' + money(a.desp) + '</td><td colspan="2"></td></tr></table></div></div>' +
+    '<div class="card"><h2>Resultado do almoço</h2><div class="res"><div class="c"><div class="h">Receita líquida</div><div class="n">' + money(a.liq) + '</div></div><div class="c"><div class="h">Despesas</div><div class="n">' + money(a.desp) + '</div></div><div class="c"><div class="h">Saldo</div><div class="n ' + (a.saldo < 0 ? "neg" : "pos") + '" id="alSaldo">' + money(a.saldo) + '</div></div><div class="c"><div class="h">Por almoço</div><div class="m">Preço médio ' + (a.qtd ? money(a.bruta / a.qtd) : "—") + "<br>Custo médio " + (a.qtd ? money(a.desp / a.qtd) : "—") + "</div></div></div></div>";
+}
+function adespForm(rec) {
+  const isNew = !rec, v0 = rec || { descricao: "", fornecedor: "", valor: "", status: "Pago", dataPag: todayISO(), obs: "" };
+  openForm({
+    title: isNew ? "Nova despesa do almoço" : "Editar despesa do almoço", values: v0,
+    fields: [
+      { key: "descricao", label: "Descrição", wide: true }, { key: "fornecedor", label: "Fornecedor" }, { key: "valor", label: "Valor ($)", type: "number", step: "0.01" },
+      { key: "status", label: "Status", type: "select", options: ["Pago", "Pendente", "Atrasado", "-"].map(s => opt(s)) }, { key: "dataPag", label: "Data de pagamento", type: "date" },
+      { key: "obs", label: "Observações", type: "textarea", wide: true }
+    ],
+    validate: v => !v.descricao.trim() ? "Informe a descrição." : null,
+    onSave: v => run(async () => {
+      const data = { descricao: v.descricao.trim(), fornecedor: v.fornecedor.trim(), valor: r2(num(v.valor)), status: v.status, dataPag: v.dataPag || "", obs: v.obs.trim() };
+      if (isNew) { data.seq = Date.now(); await S.db.collection(P("almoco_despesas")).add(data); }
+      else await S.db.doc(P("almoco_despesas/" + rec.id)).set({ ...clean(rec), ...data });
+    }, "Salvo"),
+    onDelete: isNew ? null : () => run(() => S.db.doc(P("almoco_despesas/" + rec.id)).delete(), "Excluído")
+  });
+}
+function updAlTotals() {
+  const L = getLinhas(); let b = 0, t = 0, q = 0;
+  L.forEach((l, i) => {
+    const br = (+l.qtd || 0) * (+l.preco || 0); b += br; t += (+l.taxa || 0); q += (+l.qtd || 0);
+    const eB = $("#alB" + i), eL = $("#alL" + i); if (eB) eB.textContent = money(br); if (eL) eL.textContent = money(br - (+l.taxa || 0));
+  });
+  const set = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+  set("#alQ", int(q)); set("#alTB", money(b)); set("#alTT", money(t)); set("#alTL", money(b - t));
+  const sd = $("#alSaldo"); if (sd) { const s = b - t - sum(S.adesp, d => d.valor); sd.textContent = money(s); sd.className = "n " + (s < 0 ? "neg" : "pos"); }
+}
+
+/* ---- Importar Stripe ---- */
+function viewImportar() {
+  const im = S.imp;
+  let h = '<div class="card"><h2>Importar extrato do Stripe</h2><div class="note" style="margin-bottom:12px">Envie o arquivo CSV de <b>Saldo · histórico</b> (balance_history). O app encontra as vendas, evita duplicar o que já foi lançado, e converte em Reembolso as vendas que o Stripe devolveu.</div>';
+  h += '<div class="drop"><input type="file" id="csvFile" accept=".csv,text/csv"' + (S.canWrite ? "" : " disabled") + '><div class="note" style="margin-top:8px">' + (im ? esc(im.fileName) + " · " + im.raw.length + " linhas" : "Nenhum arquivo selecionado") + "</div></div></div>";
+  if (!im) return h;
+  const brands = im.brands;
+  h += '<div class="card"><h2>Filtros</h2><div class="row2"><label>Marca (campo brand do Stripe)<select id="impBrand">' +
+    brands.map(b => '<option value="' + esc(b.brand) + '"' + (im.brand === b.brand ? " selected" : "") + ">" + (b.brand ? esc(b.brand) : "(sem marca)") + " · " + b.n + " cobranças</option>").join("") + "</select></label>" +
+    '<label>Vendas a partir de<input type="date" id="impMin" value="' + esc(im.minDate) + '"></label>' +
+    '<label>Origem para as novas vendas<select id="impOrig">' + (cfgNow().segmentos || []).filter(s => s.tipo === "pago").map(s => '<option value="' + esc(s.nome) + '"' + (im.orig === s.nome ? " selected" : "") + ">" + esc(s.nome) + "</option>").join("") + "</select></label></div>" +
+    '<div class="note" style="margin-top:8px">Cobranças com mais de 1 ingresso são divididas em uma linha por pessoa. Ajuste a origem de cada linha na tabela abaixo, se precisar.</div></div>';
+  const cs = im.cands;
+  const stl = { novo: ["ok", "Novo"], novo_reemb: ["bad", "Novo · reembolsado"], conv: ["warn", "Já lançado · converter em reembolso"], dup: ["", "Já lançado"] };
+  const act = cs.filter(c => im.sel[c.key]);
+  h += '<div class="card"><h2>Pré-visualização<small>' + cs.length + " encontradas · " + act.length + " selecionadas</small></h2>";
+  if (!cs.length) h += '<div class="empty">Nenhuma venda encontrada com esses filtros.</div>';
+  else {
+    h += '<div class="scroll"><table class="tbl"><tr><th></th><th>Data</th><th style="text-align:left">Cliente</th><th>Valor</th><th>Taxa</th><th>Origem</th><th>Situação</th></tr>' +
+      cs.map(c => {
+        const s = stl[c.status], canSel = true;
+        return '<tr><td><input type="checkbox" data-imp-sel="' + esc(c.key) + '"' + (im.sel[c.key] ? " checked" : "") + "></td><td>" + fdate(c.dataProc) + '</td><td class="wrapc">' + esc(c.cliente) + '</td><td class="r">' + money(c.valor) + '</td><td class="r">' + money(c.taxa) + "</td><td>" +
+          (c.status === "novo" || c.status === "novo_reemb" ? '<select data-imp-or="' + esc(c.key) + '">' + (cfgNow().segmentos || []).map(g => '<option value="' + esc(g.nome) + '"' + ((im.orMap[c.key] || im.orig) === g.nome ? " selected" : "") + ">" + esc(g.nome) + "</option>").join("") + "</select>" : "—") +
+          '</td><td><span class="badge ' + s[0] + '">' + s[1] + "</span></td></tr>";
+      }).join("") + "</table></div>";
+    h += '<div class="toolbar" style="margin:12px 0 0"><span class="sp"></span><button class="btn" id="impGo"' + (S.canWrite && act.length ? "" : " disabled") + ">Importar " + act.length + " selecionada(s)</button></div>";
+  }
+  return h + "</div>";
+}
+function impRecompute(keepSel) {
+  const im = S.imp; if (!im) return;
+  im.cands = stripeCandidates(im.raw, { brand: im.brand, minDate: im.minDate }, S.ins);
+  const old = im.sel; im.sel = {};
+  im.cands.forEach(c => { im.sel[c.key] = keepSel && c.key in old ? old[c.key] : (c.status === "novo" || c.status === "novo_reemb" || c.status === "conv"); });
+}
+function impLoad(file) {
+  if (!window.Papa) { toast("Não foi possível carregar o leitor de CSV.", true); return; }
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true,
+    complete: res => {
+      const raw = res.data || [];
+      if (!raw.length || !("Type" in raw[0]) || !("Amount" in raw[0])) { toast("Esse arquivo não parece o extrato do Stripe (faltam colunas Type e Amount).", true); return; }
+      const brands = stripeBrands(raw);
+      const firstSale = raw.filter(r => /^(charge|payment)$/i.test(String(r["Type"]).trim())).map(r => String(r["Created (UTC)"]).slice(0, 10)).sort()[0] || "";
+      S.imp = { fileName: file.name, raw, brands, brand: brands.length ? brands[0].brand : "", minDate: firstSale, orig: ((cfgNow().segmentos || []).find(s => s.tipo === "pago") || {}).nome || "", orMap: {}, cands: [], sel: {} };
+      impRecompute(false); render(true);
+    },
+    error: () => toast("Não foi possível ler o arquivo.", true)
+  });
+}
+async function impApply() {
+  const im = S.imp, list = im.cands.filter(c => im.sel[c.key]);
+  let n = 0;
+  const ok = await run(async () => {
+    for (const c of list) {
+      const origem = im.orMap[c.key] || im.orig;
+      if (c.status === "conv") { const ex = S.ins.find(e => e.id === c.match); if (ex) { await S.db.doc(P("inscritos/" + ex.id)).set({ ...clean(ex), sub: "Reembolso", valor: 0, stripeId: ex.stripeId || c.stripeId }); n++; } }
+      else if (c.status === "novo" || c.status === "novo_reemb") {
+        const rf = c.status === "novo_reemb";
+        await S.db.collection(P("inscritos")).add({ cliente: c.cliente, origem, sub: rf ? "Reembolso" : "Ingresso", valor: rf ? 0 : c.valor, taxa: c.taxa, conta: "Stripe", dataProc: c.dataProc, dataReceb: c.dataReceb, stripeId: c.stripeId, seq: Date.now() + n, criadoEm: new Date().toISOString() });
+        n++;
+      }
+    }
+  });
+  if (ok) { toast(n + " lançamento(s) importado(s)"); S.imp.cands = []; setTimeout(() => { impRecompute(false); render(true); }, 600); }
+  else if (n) toast("Importação parou após " + n + " lançamentos. Rode de novo: o que já entrou não duplica.", true);
+}
+
+/* ---- Config ---- */
+function cfgDraft() { if (!S.cDraft) S.cDraft = JSON.parse(JSON.stringify(cfgNow())); return S.cDraft; }
+function viewConfig() {
+  const d = S.cDraft || cfgNow(), dirty = !!S.cDraft;
+  const segHdr = '<div class="cfgrow h"><span>Origem</span><span>Tipo</span><span>Ticket ($)</span><span>Meta mín.</span><span>Meta bás.</span><span>Meta master</span><span></span></div>';
+  const segs = (d.segmentos || []).map((s, i) => '<div class="cfgrow"><input value="' + esc(s.nome) + '" data-c="snome" data-i="' + i + '"' + (S.cfg && (S.cfg.segmentos || []).some(x => x.nome === s.nome) ? " disabled" : "") + '><select data-c="stipo" data-i="' + i + '"><option value="free"' + (s.tipo === "free" ? " selected" : "") + '>Free</option><option value="pago"' + (s.tipo === "pago" ? " selected" : "") + ">Pago</option></select>" +
+    '<input class="in" type="number" step="0.01" min="0" data-c="sticket" data-i="' + i + '" value="' + (s.ticket == null ? "" : s.ticket) + '">' +
+    [0, 1, 2].map(k => '<input class="in" type="number" step="1" min="0" data-c="smeta" data-i="' + i + '" data-k="' + k + '" value="' + (((s.metas || [])[k]) == null ? "" : s.metas[k]) + '">').join("") +
+    '<button class="btn ghost small" data-c-del-seg="' + i + '">Remover</button></div>').join("");
+  const cats = (d.categorias || []).map((k, i) => '<div class="catrow"><input value="' + esc(k.nome) + '" data-c="cnome" data-i="' + i + '"' + (S.cfg && (S.cfg.categorias || []).some(x => x.nome === k.nome) ? " disabled" : "") + '><input class="in" type="number" step="0.01" min="0" data-c="cbud" data-i="' + i + '" value="' + (k.budget == null ? "" : k.budget) + '"><button class="btn ghost small" data-c-del-cat="' + i + '">Remover</button></div>').join("");
+  const tb = sum(d.categorias || [], k => k.budget);
+  return '<div class="card"><h2>Evento</h2><div class="row2"><label>Nome<input data-c="nome" value="' + esc(d.nome) + '"></label><label>Data<input type="date" data-c="data" value="' + esc(d.data) + '"></label><label>Local<input data-c="local" value="' + esc(d.local) + '"></label><label>Taxa Stripe prevista (%)<input class="num in" type="number" step="0.01" min="0" max="100" data-c="taxa" value="' + (d.taxaPrevista == null ? "" : r2(d.taxaPrevista * 100)) + '"></label></div></div>' +
+    '<div class="card"><h2>Origens, tickets e metas<small>Free = sem cobrança · Pago = entra na receita</small></h2>' + segHdr + segs + '<div class="note" style="margin:6px 0 10px">Os nomes já usados nos lançamentos ficam travados. Para criar uma nova origem, use o botão abaixo.</div><button class="btn ghost small" id="addSeg">+ Adicionar origem</button></div>' +
+    '<div class="card"><h2>Budget por categoria<small>Total ' + money(tb) + "</small></h2>" + (cats || '<div class="empty">Nenhuma categoria ainda.</div>') + '<div class="note" style="margin:6px 0 10px">Nomes de categorias já usados nos gastos ficam travados.</div><button class="btn ghost small" id="addCat">+ Adicionar categoria</button></div>' +
+    '<div class="toolbar"><button class="btn" id="saveCfg"' + (S.canWrite ? "" : " disabled") + ">Salvar configurações</button>" + (dirty ? '<button class="btn ghost" id="discCfg">Descartar alterações</button><span class="chip warn">Alterações não salvas</span>' : "") + '<span class="sp"></span><button class="btn ghost" id="expXlsx">Exportar para Excel</button></div>';
+}
+
+/* ---- exportar para Excel ---- */
+async function exportXlsx() {
+  if (!window.XLSX) { toast("Não foi possível carregar o gerador de Excel.", true); return; }
+  const dl = await window.claude.use("downloads");
+  if (!dl) { toast("Download indisponível nesta visualização.", true); return; }
+  const c = calc(), wb = XLSX.utils.book_new(), add = (name, aoa, w) => { const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = (w || []).map(x => ({ wch: x })); XLSX.utils.book_append_sheet(wb, ws, name); };
+  const hdrM = ["", ...METAS.map(m => "Meta " + m)];
+  const res = [["Controle Financeiro do Evento"], ["Evento", c.cfg.nome], ["Data", fdate(c.cfg.data)], ["Local", c.cfg.local || ""], [],
+    ["INSCRITOS", "Tipo", "Ticket", "Real", ...hdrM.slice(1)]];
+  c.segs.forEach(s => res.push([s.nome, s.tipo === "free" ? "Free" : "Pago", +s.ticket || 0, s.real, ...s.metas]));
+  res.push(["Total Free", "", "", c.free.real, ...c.free.metas], ["Total Pagos", "", "", c.pago.real, ...c.pago.metas], ["TOTAL INSCRITOS", "", "", c.tot.real, ...c.tot.metas], []);
+  res.push(["RECEITA", "", "", "Real", ...hdrM.slice(1)], ["Receita total", "", "", c.recReal, ...c.recMeta], ["Fee Stripe", "", "", c.feeReal, ...c.feeMeta], ["Receita líquida", "", "", c.liqReal, ...c.liqMeta], []);
+  res.push(["GASTOS", "", "", "Real", "Budget", "Saldo"]);
+  c.cats.forEach(k => res.push([k.nome, "", "", k.real, k.budget, k.budget - k.real]));
+  res.push(["TOTAL", "", "", c.gastoReal, c.budgetTot, c.budgetTot - c.gastoReal], [], ["RESULTADO", "", "", "Real", ...hdrM.slice(1)], ["Resultado", "", "", c.resReal, ...c.resMeta]);
+  add("Resumo", res, [34, 8, 10, 14, 14, 14, 14]);
+  const ins = S.ins.slice().sort((a, b) => (a.dataProc || "").localeCompare(b.dataProc || ""));
+  add("Receita", [["Cliente", "Data de Processamento", "Data recebimento", "ValorTotal", "Taxa", "Valor Liquido Realizado", "Categoria", "Subcategoria", "Conta", "Origem", "Check-in"],
+    ...ins.map(r => [r.cliente, fdate(r.dataProc), fdate(r.dataReceb), +r.valor || 0, +r.taxa || 0, (+r.valor || 0) - (+r.taxa || 0), "Evento", r.sub, r.conta, r.origem, r.checkinEm ? ftime(r.checkinEm) : ""])], [38, 20, 16, 12, 10, 22, 10, 14, 10, 14, 14]);
+  const gs = S.gastos.slice().sort((a, b) => (a.dataPag || "").localeCompare(b.dataPag || ""));
+  add("Controle de Gastos", [["Fornecedor", "Categoria", "Valor Real", "Data Pagamento", "Forma de Pagamento", "Status Pagamento", "Observações"], ...gs.map(g => [g.fornecedor, g.categoria, +g.valor || 0, fdate(g.dataPag), g.forma, g.status, g.obs])], [28, 34, 12, 16, 22, 16, 30]);
+  const al = [["Forma de pagamento", "Qtd vendida", "Preço unitário", "Receita bruta", "Taxa (Stripe)", "Receita líquida"], ...c.al.linhas.map(l => [l.forma, +l.qtd || 0, +l.preco || 0, (+l.qtd || 0) * (+l.preco || 0), +l.taxa || 0, (+l.qtd || 0) * (+l.preco || 0) - (+l.taxa || 0)]),
+    ["TOTAL", c.al.qtd, "", c.al.bruta, c.al.taxa, c.al.liq], [], ["Descrição", "Fornecedor", "Valor", "Status", "Data Pagamento", "Observações"], ...S.adesp.map(d => [d.descricao, d.fornecedor, +d.valor || 0, d.status, fdate(d.dataPag), d.obs]),
+    ["TOTAL DESPESAS", "", c.al.desp], [], ["Saldo do almoço", c.al.saldo]];
+  add("Almoço", al, [28, 20, 14, 14, 16, 30]);
+  const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  const nome = (c.cfg.nome || "evento").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]+/g, "_");
+  try { await dl.save({ filename: "Financeiro_" + nome + ".xlsx", data: buf }); toast("Arquivo gerado"); }
+  catch (e) { if (!e || e.code !== "declined") toast("Não foi possível gerar o arquivo.", true); }
+}
+
+/* ================= eventos ================= */
+function bindView() {
+  const v = $("#view");
+  const on = (sel, fn) => v.querySelectorAll(sel).forEach(fn);
+  const q = $("#qIns"); if (q) q.oninput = () => { S.fIns.q = q.value; rerenderKeepFocus("#qIns"); };
+  on("[data-seg]", b => b.onclick = () => { S.fIns.seg = b.dataset.seg; render(true); });
+  const ne = $("#newEvent"); if (ne) ne.onclick = () => eventForm(null);
+  on("[data-open]", c => c.onclick = () => { location.hash = c.dataset.open + "--painel"; });
+  on("[data-ev-edit]", b => b.onclick = e => { e.stopPropagation(); eventForm(S.events.find(x => x.id === b.dataset.evEdit)); });
+  on("[data-ev-arc]", b => b.onclick = e => { e.stopPropagation(); const ev = S.events.find(x => x.id === b.dataset.evArc); if (ev) run(() => S.db.doc("eventos/" + ev.id).update({ arquivado: !ev.arquivado }), ev.arquivado ? "Evento restaurado" : "Evento arquivado"); });
+  on("[data-ev-del]", b => b.onclick = e => { e.stopPropagation(); deleteEventForm(S.events.find(x => x.id === b.dataset.evDel)); });
+  const ta = $("#togArch"); if (ta) ta.onclick = () => { S.showArch = !S.showArch; ensureSubs(); render(true); };
+  const ni = $("#newIns"); if (ni) ni.onclick = () => insForm(null);
+  const qc = $("#qChk"); if (qc) qc.oninput = () => { S.fChk.q = qc.value; rerenderKeepFocus("#qChk"); };
+  on("[data-ckf]", b => b.onclick = () => { S.fChk.f = b.dataset.ckf; render(true); });
+  const wi = $("#walkIn"); if (wi) wi.onclick = () => insForm(null, { checkin: true });
+  on("[data-ck]", b => b.onclick = () => { const r = S.ins.find(x => x.id === b.dataset.ck); if (r) run(() => S.db.doc(P("inscritos/" + r.id)).update({ checkinEm: new Date().toISOString() }), "Check-in: " + r.cliente); });
+  on("[data-unck]", b => b.onclick = () => { const r = S.ins.find(x => x.id === b.dataset.unck); if (r) run(() => S.db.doc(P("inscritos/" + r.id)).update({ checkinEm: "" }), "Check-in desfeito: " + r.cliente); });
+  on("[data-edit-ins]", r => r.onclick = () => insForm(S.ins.find(x => x.id === r.dataset.editIns)));
+  const qg = $("#qGas"); if (qg) qg.oninput = () => { S.fGas.q = qg.value; rerenderKeepFocus("#qGas"); };
+  const fc = $("#fCat"); if (fc) fc.onchange = () => { S.fGas.cat = fc.value; render(true); };
+  const fs = $("#fSt"); if (fs) fs.onchange = () => { S.fGas.st = fs.value; render(true); };
+  const ng = $("#newGas"); if (ng) ng.onclick = () => gasForm(null);
+  on("[data-edit-gas]", r => r.onclick = () => gasForm(S.gastos.find(x => x.id === r.dataset.editGas)));
+  // almoço
+  on("[data-al]", i => i.oninput = () => {
+    if (!S.aDraft) S.aDraft = JSON.parse(JSON.stringify(getLinhas()));
+    S.aDraft[+i.dataset.i][i.dataset.al] = num(i.value); updAlTotals();
+  });
+  const sa = $("#saveAl"); if (sa) sa.onclick = async () => {
+    const L = getLinhas().map(l => ({ forma: l.forma, qtd: +l.qtd || 0, preco: +l.preco || 0, taxa: +l.taxa || 0 }));
+    if (await run(() => S.db.doc(P("almoco/receita")).set({ linhas: L }), "Receita do almoço salva")) S.aDraft = null;
+  };
+  const na = $("#newAdesp"); if (na) na.onclick = () => adespForm(null);
+  on("[data-edit-adesp]", r => r.onclick = () => adespForm(S.adesp.find(x => x.id === r.dataset.editAdesp)));
+  // importar
+  const cf = $("#csvFile"); if (cf) cf.onchange = () => { if (cf.files[0]) impLoad(cf.files[0]); };
+  const ib = $("#impBrand"); if (ib) ib.onchange = () => { S.imp.brand = ib.value; impRecompute(false); render(true); };
+  const im = $("#impMin"); if (im) im.onchange = () => { S.imp.minDate = im.value; impRecompute(false); render(true); };
+  const io = $("#impOrig"); if (io) io.onchange = () => { S.imp.orig = io.value; render(true); };
+  on("[data-imp-sel]", c => c.onchange = () => { S.imp.sel[c.dataset.impSel] = c.checked; render(true); });
+  on("[data-imp-or]", s => s.onchange = () => { S.imp.orMap[s.dataset.impOr] = s.value; });
+  const ig = $("#impGo"); if (ig) ig.onclick = impApply;
+  // config
+  on("[data-c]", el => el.oninput = el.onchange = () => {
+    const d = cfgDraft(), k = el.dataset.c, i = +el.dataset.i;
+    if (k === "nome" || k === "data" || k === "local") d[k] = el.value;
+    else if (k === "taxa") d.taxaPrevista = num(el.value) / 100;
+    else if (k === "snome") d.segmentos[i].nome = el.value;
+    else if (k === "stipo") d.segmentos[i].tipo = el.value;
+    else if (k === "sticket") d.segmentos[i].ticket = num(el.value);
+    else if (k === "smeta") { d.segmentos[i].metas = d.segmentos[i].metas || [0, 0, 0]; d.segmentos[i].metas[+el.dataset.k] = num(el.value); }
+    else if (k === "cnome") d.categorias[i].nome = el.value;
+    else if (k === "cbud") d.categorias[i].budget = num(el.value);
+  });
+  const as = $("#addSeg"); if (as) as.onclick = () => { cfgDraft().segmentos.push({ nome: "Nova origem", tipo: "pago", ticket: 0, metas: [0, 0, 0] }); render(true); };
+  const ac = $("#addCat"); if (ac) ac.onclick = () => { cfgDraft().categorias.push({ nome: "Nova categoria", budget: 0 }); render(true); };
+  on("[data-c-del-seg]", b => b.onclick = async () => {
+    const d = cfgDraft(), s = d.segmentos[+b.dataset.cDelSeg];
+    if (S.ins.some(r => r.origem === s.nome)) { toast("Há inscritos com essa origem. Mude a origem deles antes de remover.", true); return; }
+    d.segmentos.splice(+b.dataset.cDelSeg, 1); render(true);
+  });
+  on("[data-c-del-cat]", b => b.onclick = async () => {
+    const d = cfgDraft(), k = d.categorias[+b.dataset.cDelCat];
+    if (S.gastos.some(g => g.categoria === k.nome)) { toast("Há gastos nessa categoria. Mude a categoria deles antes de remover.", true); return; }
+    d.categorias.splice(+b.dataset.cDelCat, 1); render(true);
+  });
+  const sc = $("#saveCfg"); if (sc) sc.onclick = async () => {
+    const d = cfgDraft(), names = d.segmentos.map(s => s.nome.trim()), cn = d.categorias.map(k => k.nome.trim());
+    if (names.some(n => !n) || new Set(names).size !== names.length) { toast("As origens precisam de nomes únicos.", true); return; }
+    if (cn.some(n => !n) || new Set(cn).size !== cn.length) { toast("As categorias precisam de nomes únicos.", true); return; }
+    const out = { nome: d.nome.trim() || "Evento", data: d.data || "", local: d.local || "", taxaPrevista: +d.taxaPrevista || 0,
+      segmentos: d.segmentos.map(s => ({ nome: s.nome.trim(), tipo: s.tipo, ticket: +s.ticket || 0, metas: [0, 1, 2].map(k => +((s.metas || [])[k]) || 0) })),
+      categorias: d.categorias.map(k => ({ nome: k.nome.trim(), budget: +k.budget || 0 })) };
+    if (await run(() => S.db.doc("eventos/" + S.eid).update(out), "Configurações salvas")) S.cDraft = null;
+  };
+  const dc = $("#discCfg"); if (dc) dc.onclick = () => { S.cDraft = null; render(true); };
+  const ex = $("#expXlsx"); if (ex) ex.onclick = exportXlsx;
+}
+function rerenderKeepFocus(sel) {
+  const el = $(sel), pos = el ? el.selectionStart : 0;
+  S.pending = false; const keep = S.tab; render(true);
+  const n = $(sel); if (n && S.tab === keep) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) { } }
+}
+$("#tabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b && S.eid) { location.hash = S.eid + "--" + b.dataset.tab; } });
+$("#view").addEventListener("focusout", () => { if (S.pending) setTimeout(() => { if (!editingNow()) schedule(); }, 50); });
+function syncCurrent() {
+  const ev = S.events.find(e => e.id === S.eid) || null, d = S.evData[S.eid] || {};
+  S.cfg = ev; S.ins = d.ins || []; S.gastos = d.gastos || []; S.adesp = d.adesp || []; S.arec = d.arec || null;
+}
+function route() {
+  const h = (location.hash || "").replace("#", ""), prev = S.eid;
+  if (!h || h === "home") { S.view = "home"; S.eid = null; }
+  else { const m = h.match(/^(.+?)--([a-z]+)$/); S.view = "event"; S.eid = m ? m[1] : h; S.tab = m && TABS.some(t => t[0] === m[2]) ? m[2] : "painel"; }
+  if (S.eid !== prev) { S.cDraft = null; S.aDraft = null; S.imp = null; S.fIns = { q: "", seg: "" }; S.fChk = { q: "", f: "faltam" }; S.fGas = { q: "", cat: "", st: "" }; }
+  syncCurrent(); ensureSubs(); schedule(); window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+
+/* ================= conexão com os dados ================= */
+const evd = id => S.evData[id] || (S.evData[id] = { ins: [], gastos: [], adesp: [], arec: null });
+const listOf = snap => snap.docs.map(d => ({ id: d.id, ...d.data() }));
+function failSub(e) { S.err = e; if (e && e.code === "revoked") S.db = null; S.sync = "ok"; schedule(); }
+function sub(key, fn) { if (!S.subs[key]) S.subs[key] = fn(); }
+function subCol(id, kind, coll) {
+  sub(id + ":" + kind, () => S.db.collection("eventos/" + id + "/" + coll).onSnapshot(s => { evd(id)[kind] = listOf(s); S.got.add(id + ":" + kind); if (id === S.eid) syncCurrent(); schedule(); }, failSub));
+}
+function ensureSubs() {
+  if (!S.db) return;
+  S.events.forEach(ev => {
+    if (ev.arquivado && !S.showArch && ev.id !== S.eid) return;
+    subCol(ev.id, "ins", "inscritos"); subCol(ev.id, "gastos", "gastos");
+  });
+  if (S.eid && S.events.some(e => e.id === S.eid)) {
+    subCol(S.eid, "adesp", "almoco_despesas");
+    sub(S.eid + ":arec", () => S.db.doc("eventos/" + S.eid + "/almoco/receita").onSnapshot(s => { evd(S.eid).arec = s.exists ? s.data() : null; S.got.add(S.eid + ":arec"); syncCurrent(); schedule(); }, failSub));
+  }
+  Object.keys(S.subs).forEach(k => { const [id, kind] = k.split(":"); if ((kind === "adesp" || kind === "arec") && id !== S.eid) { S.subs[k](); delete S.subs[k]; S.got.delete(k); } });
+}
+const lastTouch = {};
+async function touch() {
+  if (!S.db || !S.eid || Date.now() - (lastTouch[S.eid] || 0) < 20000) return;
+  lastTouch[S.eid] = Date.now();
+  try { await S.db.doc("eventos/" + S.eid).update({ ultimaAtividade: new Date().toISOString() }); } catch (e) { }
+}
+(async function init() {
+  route();
+  const slow = setTimeout(() => { if (S.sync === "load") { S.sync = "slow"; schedule(); } }, 10000);
+  let db = null;
+  try { db = await window.claude.use("db"); } catch (e) { db = null; }
+  try { S.user = await window.claude.use("user"); } catch (e) { S.user = null; }
+  if (!db) { clearTimeout(slow); S.sync = "off"; schedule(); return; }
+  S.db = db;
+  try { if (S.user) { const cw = await S.user.can("data.write"); S.canWrite = cw !== false; } } catch (e) { }
+  db.collection("eventos").onSnapshot(s => {
+    S.events = listOf(s); S.got.add("events"); S.sync = "ok"; clearTimeout(slow);
+    const ids = new Set(S.events.map(e => e.id));
+    Object.keys(S.subs).forEach(k => { if (!ids.has(k.split(":")[0])) { S.subs[k](); delete S.subs[k]; S.got.delete(k); } });
+    Object.keys(S.evData).forEach(id => { if (!ids.has(id)) delete S.evData[id]; });
+    syncCurrent(); ensureSubs(); schedule();
+  }, failSub);
+})();
+</script>
 </body>
 </html>
