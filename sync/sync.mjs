@@ -116,11 +116,18 @@ async function lancar(ch, { qty, name, email, via, totalIngressos, participantes
     const v = i === qty ? r2(restV) : r2(amount / qty), f = i === qty ? r2(restF) : r2(fee / qty);
     restV -= v; restF -= f;
     const stripeId = qty > 1 ? ch.id + "#" + i : ch.id;
-    const part = i > 1 ? String(participantes[i - 2] || "").trim() : "";
+    const part = i > 1 ? String(participantes[i - 2] || "").replace(/<[^>]*>/g, "").trim() : "";
     const cliente = qty > 1 ? (part ? `${part} (compra de ${name})` : `${name} (${i}/${qty})`) : name;
+    const quem = part || name;
+    const valorOk = e => Math.abs((+e.valor || 0) - v) < 0.005 || (e.sub === "Reembolso" && (+e.valor || 0) === 0);
     const bySid = existentes.find(e => e.stripeId === stripeId);
-    const ex = bySid || existentes.find(e => !e.stripeId && e.dataProc === created && sameName(e.cliente, name) &&
-      (Math.abs((+e.valor || 0) - v) < 0.005 || (e.sub === "Reembolso" && (+e.valor || 0) === 0)));
+    const porNome = e => !e.stripeId && e.dataProc === created && (sameName(e.cliente, quem) || (!part && sameName(e.cliente, name)));
+    let ex = bySid || existentes.find(e => porNome(e) && valorOk(e));
+    if (!ex) {
+      ex = existentes.find(porNome);   // mesma pessoa e dia, valor diferente: vincula e avisa
+      if (ex && !(marca && SIMULAR)) revisar.push({ tipo: "valor diferente", existente: ex.id, nome: ex.cliente, valorApp: +ex.valor || 0, valorStripe: v, stripeId });
+      if (ex && marca && SIMULAR) plano.push({ acao: "aviso", tipo: "valor diferente", existente: ex.id, nome: ex.cliente, valorApp: +ex.valor || 0, valorStripe: v });
+    }
 
     if (ex) {
       const upd = {};
@@ -207,7 +214,8 @@ if (novos || reembolsos) await db.doc("eventos/" + EID).update({ ultimaAtividade
 const stRef = db.doc(`eventos/${EID}/sync/status`);
 const anterior = (await stRef.get()).data()?.revisar || [];
 const idsAtuais = new Set(existentes.map(e => e.id));
-const revisarTodos = [...anterior.filter(r => idsAtuais.has(r.novo) && !revisar.some(x => x.novo === r.novo)), ...revisar];
+const chave = r => r.novo || ("v:" + r.stripeId);
+const revisarTodos = [...anterior.filter(r => (!r.novo || idsAtuais.has(r.novo)) && !revisar.some(x => chave(x) === chave(r))), ...revisar];
 await stRef.set({
   ultimaExecucao: new Date().toISOString(), vistos, novos, vinculados, reembolsos, taxaReal: comTaxaReal,
   marcasConfiguradas: marcas, marcasNoStripe: resumoMarcas, chavesMetadata: chavesMeta, revisar: revisarTodos,
