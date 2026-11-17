@@ -57,94 +57,142 @@ function sameName(a, b) {
 }
 const isoDay = sec => new Date(sec * 1000).toISOString().slice(0, 10);
 
-// 1. Descobre o id (plink_...) de cada URL de link de pagamento.
+// 1. Descobre o id (plink_...) de cada URL de link de pagamento (buy.stripe.com).
 const norm = u => String(u || "").trim().replace(/\/+$/, "").toLowerCase();
-const alvo = new Map(ev.links.map(l => [norm(l.url), l]));
+const alvo = new Map((ev.links || []).map(l => [norm(l.url), l]));
 const links = new Map();
-for await (const pl of stripe.paymentLinks.list({ limit: 100 })) {
-  const l = alvo.get(norm(pl.url));
-  if (l) links.set(pl.id, l);
+if (alvo.size) {
+  for await (const pl of stripe.paymentLinks.list({ limit: 100 })) {
+    const l = alvo.get(norm(pl.url));
+    if (l) links.set(pl.id, l);
+  }
+  const naoAchados = ev.links.filter(l => ![...links.values()].includes(l));
+  if (naoAchados.length) console.warn(`${naoAchados.length} link(s) de pagamento não encontrados nesta conta do Stripe.`);
 }
-const naoAchados = ev.links.filter(l => ![...links.values()].includes(l));
-if (naoAchados.length) console.warn("Links não encontrados nesta conta do Stripe:", naoAchados.map(l => l.url).join(", "));
-if (!links.size) { console.error("Nenhum link encontrado. Confira a chave e as URLs."); process.exit(1); }
 
 // 2. O que já está no app.
 const col = db.collection(`eventos/${EID}/inscritos`);
 const existentes = (await col.get()).docs.map(d => ({ id: d.id, ...d.data() }));
 
-// 3. Vendas concluídas de cada link.
 let comTaxaReal = true;
-async function listarSessoes(plid) {
+async function listar(fn, params, expandCom, expandSem) {
   const out = [];
-  const base = { payment_link: plid, status: "complete", limit: 100 };
   try {
-    if (comTaxaReal) {
-      for await (const s of stripe.checkout.sessions.list({ ...base, expand: ["data.payment_intent.latest_charge.balance_transaction"] })) out.push(s);
-      return out;
-    }
+    if (comTaxaReal) { for await (const x of fn({ ...params, expand: expandCom })) out.push(x); return out; }
   } catch (e) {
     if (e?.type !== "StripePermissionError" && e?.statusCode !== 403) throw e;
     comTaxaReal = false; out.length = 0;
     console.warn("A chave não lê Balance Transactions: a taxa será estimada (2,9% + $ 0,30).");
   }
-  for await (const s of stripe.checkout.sessions.list({ ...base, expand: ["data.payment_intent.latest_charge"] })) out.push(s);
+  for await (const x of fn({ ...params, expand: expandSem })) out.push(x);
   return out;
 }
 
 let vistos = 0, novos = 0, vinculados = 0, reembolsos = 0;
+const revisar = [];
 let batch = db.batch(), ops = 0;
 const flush = async () => { if (ops) { await batch.commit(); batch = db.batch(); ops = 0; } };
 const agora = Date.now();
+const feitos = new Set();
 
+// Lança uma cobrança (ch) como 1 linha por ingresso, sem duplicar.
+async function lancar(ch, { qty, name, email, via }) {
+  if (feitos.has(ch.id)) return;
+  feitos.add(ch.id); vistos++;
+  qty = Math.max(1, parseInt(qty, 10) || 1);
+  const amount = (ch.amount || 0) / 100;
+  const bt = ch.balance_transaction && typeof ch.balance_transaction === "object" ? ch.balance_transaction : null;
+  const fee = bt ? bt.fee / 100 : r2(amount * 0.029 + 0.30);
+  const refunded = ch.refunded || (ch.amount_refunded > 0 && ch.amount_refunded >= ch.amount);
+  name = String(name || email || "(sem nome)").trim();
+  const created = isoDay(ch.created);
+  const avail = bt?.available_on ? isoDay(bt.available_on) : "";
+
+  let restV = amount, restF = fee;
+  for (let i = 1; i <= qty; i++) {
+    const v = i === qty ? r2(restV) : r2(amount / qty), f = i === qty ? r2(restF) : r2(fee / qty);
+    restV -= v; restF -= f;
+    const stripeId = qty > 1 ? ch.id + "#" + i : ch.id;
+    const cliente = qty > 1 ? `${name} (${i}/${qty})` : name;
+    const bySid = existentes.find(e => e.stripeId === stripeId);
+    const ex = bySid || existentes.find(e => !e.stripeId && e.dataProc === created && sameName(e.cliente, name) &&
+      (Math.abs((+e.valor || 0) - v) < 0.005 || (e.sub === "Reembolso" && (+e.valor || 0) === 0)));
+
+    if (ex) {
+      const upd = {};
+      if (!ex.stripeId) { upd.stripeId = stripeId; ex.stripeId = stripeId; vinculados++; }
+      if (refunded && ex.sub !== "Reembolso") { upd.sub = "Reembolso"; upd.valor = 0; reembolsos++; }
+      if (Object.keys(upd).length) { batch.update(col.doc(ex.id), upd); ops++; }
+    } else {
+      const id = "stripe_" + stripeId.replace(/[^A-Za-z0-9_]/g, "_");
+      const novo = {
+        cliente, origem: origemPadrao, sub: refunded ? "Reembolso" : "Ingresso", valor: refunded ? 0 : v, taxa: f,
+        conta: "Stripe", dataProc: created, dataReceb: avail, stripeId, email: email || "",
+        seq: agora + novos, criadoEm: new Date().toISOString(), checkinEm: "", via,
+      };
+      // Mesmo dia e valor, sem stripeId e nome diferente: pode ser a mesma pessoa com outro nome.
+      const parecidos = existentes.filter(e => !e.stripeId && e.dataProc === created && Math.abs((+e.valor || 0) - v) < 0.005);
+      if (parecidos.length) revisar.push({ novo: id, nomeNovo: cliente, candidatos: parecidos.map(e => ({ id: e.id, nome: e.cliente })) });
+      batch.set(col.doc(id), novo); ops++; novos++;
+      existentes.push({ id, ...novo });
+    }
+    if (ops >= 400) await flush();
+  }
+}
+
+// 3a. Vendas pelos links de pagamento do Stripe.
 for (const [plid] of links) {
-  for (const s of await listarSessoes(plid)) {
+  const sess = await listar(p => stripe.checkout.sessions.list(p), { payment_link: plid, status: "complete", limit: 100 },
+    ["data.payment_intent.latest_charge.balance_transaction"], ["data.payment_intent.latest_charge"]);
+  for (const s of sess) {
     if (s.payment_status !== "paid") continue;
     const ch = s.payment_intent?.latest_charge;
     if (!ch || typeof ch !== "object") continue;
-    vistos++;
     const itens = await stripe.checkout.sessions.listLineItems(s.id, { limit: 100 });
     const qty = itens.data.reduce((t, i) => t + (i.quantity || 1), 0) || 1;
-    const amount = (ch.amount || s.amount_total || 0) / 100;
-    const bt = ch.balance_transaction && typeof ch.balance_transaction === "object" ? ch.balance_transaction : null;
-    const fee = bt ? bt.fee / 100 : r2(amount * 0.029 + 0.30);
-    const refunded = ch.refunded || (ch.amount_refunded > 0 && ch.amount_refunded >= ch.amount);
     const cd = s.customer_details || {};
-    const name = (cd.name || cd.email || "(sem nome)").trim();
-    const created = isoDay(ch.created || s.created);
-    const avail = bt?.available_on ? isoDay(bt.available_on) : "";
+    await lancar(ch, { qty, name: cd.name, email: cd.email, via: "sync-links" });
+  }
+}
 
-    let restV = amount, restF = fee;
-    for (let i = 1; i <= qty; i++) {
-      const v = i === qty ? r2(restV) : r2(amount / qty), f = i === qty ? r2(restF) : r2(fee / qty);
-      restV -= v; restF -= f;
-      const stripeId = qty > 1 ? ch.id + "#" + i : ch.id;
-      const cliente = qty > 1 ? `${name} (${i}/${qty})` : name;
-      const bySid = existentes.find(e => e.stripeId === stripeId);
-      const ex = bySid || existentes.find(e => !e.stripeId && e.dataProc === created && sameName(e.cliente, name) &&
-        (Math.abs((+e.valor || 0) - v) < 0.005 || (e.sub === "Reembolso" && (+e.valor || 0) === 0)));
-
-      if (ex) {
-        const upd = {};
-        if (!ex.stripeId) { upd.stripeId = stripeId; ex.stripeId = stripeId; vinculados++; }
-        if (refunded && ex.sub !== "Reembolso") { upd.sub = "Reembolso"; upd.valor = 0; reembolsos++; }
-        if (Object.keys(upd).length) { batch.update(col.doc(ex.id), upd); ops++; }
-      } else {
-        const id = "stripe_" + stripeId.replace(/[^A-Za-z0-9_]/g, "_");
-        const novo = {
-          cliente, origem: origemPadrao, sub: refunded ? "Reembolso" : "Ingresso", valor: refunded ? 0 : v, taxa: f,
-          conta: "Stripe", dataProc: created, dataReceb: avail, stripeId, email: cd.email || "",
-          seq: agora + novos, criadoEm: new Date().toISOString(), checkinEm: "", via: "sync-links",
-        };
-        batch.set(col.doc(id), novo); ops++; novos++;
-        existentes.push({ id, ...novo });
-      }
-      if (ops >= 400) await flush();
-    }
+// 3b. Vendas do checkout próprio (cobranças com metadata.brand do evento).
+const marcas = (ev.marcas || []).map(m => String(m).trim().toLowerCase()).filter(Boolean);
+const desde = Math.floor(new Date((ev.vendasDesde || "2026-09-01") + "T00:00:00Z").getTime() / 1000);
+const resumoMarcas = {}, chavesMeta = {};
+const cobrancas = await listar(p => stripe.charges.list(p), { created: { gte: desde }, limit: 100 },
+  ["data.balance_transaction"], []);
+for (const ch of cobrancas) {
+  if (ch.status !== "succeeded" || !ch.paid) continue;
+  const md = ch.metadata || {};
+  const b = String(md.brand || "").trim();
+  const k = b || "(sem marca)";
+  resumoMarcas[k] = resumoMarcas[k] || { cobrancas: 0, valores: {} };
+  resumoMarcas[k].cobrancas++;
+  const val = String((ch.amount || 0) / 100); resumoMarcas[k].valores[val] = (resumoMarcas[k].valores[val] || 0) + 1;
+  Object.keys(md).forEach(x => { chavesMeta[x] = (chavesMeta[x] || 0) + 1; });
+  if (b && marcas.includes(b.toLowerCase())) {
+    const bd = ch.billing_details || {};
+    await lancar(ch, {
+      qty: md.quantidade || md.quantity || md.qtd || 1,
+      name: md.customer_name || md.nome || bd.name || ch.receipt_email,
+      email: md.lead_email || md.customer_email || md.email || bd.email || ch.receipt_email,
+      via: "sync-checkout",
+    });
   }
 }
 await flush();
 if (novos || reembolsos) await db.doc("eventos/" + EID).update({ ultimaAtividade: new Date().toISOString() });
 
-console.log(`Vendas pelos links: ${vistos} · novos inscritos: ${novos} · já existentes vinculados: ${vinculados} · reembolsos: ${reembolsos}` +
+// Relatório no banco (só quem tem PIN lê). O log do GitHub é público: lá só vão números.
+const stRef = db.doc(`eventos/${EID}/sync/status`);
+const anterior = (await stRef.get()).data()?.revisar || [];
+const idsAtuais = new Set(existentes.map(e => e.id));
+const revisarTodos = [...anterior.filter(r => idsAtuais.has(r.novo) && !revisar.some(x => x.novo === r.novo)), ...revisar];
+await stRef.set({
+  ultimaExecucao: new Date().toISOString(), vistos, novos, vinculados, reembolsos, taxaReal: comTaxaReal,
+  marcasConfiguradas: marcas, marcasNoStripe: resumoMarcas, chavesMetadata: chavesMeta, revisar: revisarTodos,
+});
+
+console.log(`Vendas consideradas: ${vistos} · novos inscritos: ${novos} · já existentes vinculados: ${vinculados} · reembolsos: ${reembolsos}` +
+  ` · para revisar: ${revisarTodos.length} · marcas no Stripe desde ${ev.vendasDesde || "2026-09-01"}: ${Object.keys(resumoMarcas).length}` +
   (comTaxaReal ? "" : " · taxa estimada"));

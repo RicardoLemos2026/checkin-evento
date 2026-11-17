@@ -31,5 +31,12 @@
     "197": "Lote 3"
   },
   "eventoId": "dsv-nov26",
-  "origemPadrao": ""
+  "origemPadrao": "",
+  "checkouts": [
+    "https://ckt.businessconnectionusa.com.br/checkout/vendas-lote-1",
+    "https://ckt.businessconnectionusa.com.br/checkout/vendas-lote-2",
+    "https://ckt.businessconnectionusa.com.br/checkout/vendas-lote-3"
+  ],
+  "marcas": [],
+  "vendasDesde": "2026-09-01"
 }
