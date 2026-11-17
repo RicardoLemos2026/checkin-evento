@@ -37,6 +37,9 @@
     "https://ckt.businessconnectionusa.com.br/checkout/vendas-lote-2",
     "https://ckt.businessconnectionusa.com.br/checkout/vendas-lote-3"
   ],
-  "marcas": [],
-  "vendasDesde": "2026-09-01"
+  "marcas": [
+    "dobre-suas-vendas"
+  ],
+  "vendasDesde": "2026-09-01",
+  "marcasSimular": true
 }

@@ -89,20 +89,23 @@ async function listar(fn, params, expandCom, expandSem) {
 }
 
 let vistos = 0, novos = 0, vinculados = 0, reembolsos = 0;
-const revisar = [];
+const revisar = [], plano = [];
+const SIMULAR = ev.marcasSimular === true;
 let batch = db.batch(), ops = 0;
 const flush = async () => { if (ops) { await batch.commit(); batch = db.batch(); ops = 0; } };
 const agora = Date.now();
 const feitos = new Set();
 
 // Lança uma cobrança (ch) como 1 linha por ingresso, sem duplicar.
-async function lancar(ch, { qty, name, email, via }) {
+async function lancar(ch, { qty, name, email, via, totalIngressos, participantes = [], bump = 0, marca = false }) {
   if (feitos.has(ch.id)) return;
   feitos.add(ch.id); vistos++;
   qty = Math.max(1, parseInt(qty, 10) || 1);
-  const amount = (ch.amount || 0) / 100;
+  const amountTotal = (ch.amount || 0) / 100;
+  const amount = totalIngressos != null ? totalIngressos : amountTotal;
   const bt = ch.balance_transaction && typeof ch.balance_transaction === "object" ? ch.balance_transaction : null;
-  const fee = bt ? bt.fee / 100 : r2(amount * 0.029 + 0.30);
+  const feeTotal = bt ? bt.fee / 100 : r2(amountTotal * 0.029 + 0.30);
+  const fee = amountTotal > 0 ? r2(feeTotal * amount / amountTotal) : feeTotal;
   const refunded = ch.refunded || (ch.amount_refunded > 0 && ch.amount_refunded >= ch.amount);
   name = String(name || email || "(sem nome)").trim();
   const created = isoDay(ch.created);
@@ -113,7 +116,8 @@ async function lancar(ch, { qty, name, email, via }) {
     const v = i === qty ? r2(restV) : r2(amount / qty), f = i === qty ? r2(restF) : r2(fee / qty);
     restV -= v; restF -= f;
     const stripeId = qty > 1 ? ch.id + "#" + i : ch.id;
-    const cliente = qty > 1 ? `${name} (${i}/${qty})` : name;
+    const part = i > 1 ? String(participantes[i - 2] || "").trim() : "";
+    const cliente = qty > 1 ? (part ? `${part} (compra de ${name})` : `${name} (${i}/${qty})`) : name;
     const bySid = existentes.find(e => e.stripeId === stripeId);
     const ex = bySid || existentes.find(e => !e.stripeId && e.dataProc === created && sameName(e.cliente, name) &&
       (Math.abs((+e.valor || 0) - v) < 0.005 || (e.sub === "Reembolso" && (+e.valor || 0) === 0)));
@@ -122,6 +126,7 @@ async function lancar(ch, { qty, name, email, via }) {
       const upd = {};
       if (!ex.stripeId) { upd.stripeId = stripeId; ex.stripeId = stripeId; vinculados++; }
       if (refunded && ex.sub !== "Reembolso") { upd.sub = "Reembolso"; upd.valor = 0; reembolsos++; }
+      if (marca && SIMULAR) { plano.push({ acao: "vincular", existente: ex.id, nomeExistente: ex.cliente, comprador: name, valor: v, data: created, stripeId }); continue; }
       if (Object.keys(upd).length) { batch.update(col.doc(ex.id), upd); ops++; }
     } else {
       const id = "stripe_" + stripeId.replace(/[^A-Za-z0-9_]/g, "_");
@@ -130,9 +135,11 @@ async function lancar(ch, { qty, name, email, via }) {
         conta: "Stripe", dataProc: created, dataReceb: avail, stripeId, email: email || "",
         seq: agora + novos, criadoEm: new Date().toISOString(), checkinEm: "", via,
       };
+      if (bump && i === 1) novo.bump = bump;
       // Mesmo dia e valor, sem stripeId e nome diferente: pode ser a mesma pessoa com outro nome.
       const parecidos = existentes.filter(e => !e.stripeId && e.dataProc === created && Math.abs((+e.valor || 0) - v) < 0.005);
-      if (parecidos.length) revisar.push({ novo: id, nomeNovo: cliente, candidatos: parecidos.map(e => ({ id: e.id, nome: e.cliente })) });
+      if (parecidos.length && !(marca && SIMULAR)) revisar.push({ novo: id, nomeNovo: cliente, candidatos: parecidos.map(e => ({ id: e.id, nome: e.cliente })) });
+      if (marca && SIMULAR) { plano.push({ acao: "novo", id, cliente, valor: v, data: created, bump: i === 1 ? bump : 0, parecidos: parecidos.map(e => e.cliente) }); novos++; existentes.push({ id, ...novo }); continue; }
       batch.set(col.doc(id), novo); ops++; novos++;
       existentes.push({ id, ...novo });
     }
@@ -158,7 +165,7 @@ for (const [plid] of links) {
 // 3b. Vendas do checkout próprio (cobranças com metadata.brand do evento).
 const marcas = (ev.marcas || []).map(m => String(m).trim().toLowerCase()).filter(Boolean);
 const desde = Math.floor(new Date((ev.vendasDesde || "2026-09-01") + "T00:00:00Z").getTime() / 1000);
-const resumoMarcas = {}, chavesMeta = {};
+const resumoMarcas = {}, chavesMeta = {}, amostra = [];
 const cobrancas = await listar(p => stripe.charges.list(p), { created: { gte: desde }, limit: 100 },
   ["data.balance_transaction"], []);
 for (const ch of cobrancas) {
@@ -172,11 +179,24 @@ for (const ch of cobrancas) {
   Object.keys(md).forEach(x => { chavesMeta[x] = (chavesMeta[x] || 0) + 1; });
   if (b && marcas.includes(b.toLowerCase())) {
     const bd = ch.billing_details || {};
+    // Separa o valor do ingresso do "bump" (adicional). Os campos podem vir em centavos ou em dólares.
+    const num = x => { const n = parseFloat(String(x ?? "").replace(",", ".")); return isFinite(n) ? n : 0; };
+    const prod = num(md.amount_product), bmp = num(md.amount_bump), desc = num(md.amount_discount);
+    const totCents = ch.amount || 0;
+    let fator = 0;
+    if (Math.abs(prod + bmp - desc - totCents) < 2) fator = 100;
+    else if (Math.abs((prod + bmp - desc) * 100 - totCents) < 2) fator = 1;
+    const bump = fator ? r2(bmp * (fator === 100 ? 0.01 : 1)) : 0;
+    const totalIngressos = fator ? r2(totCents / 100 - bump) : null;
+    const participantes = [2, 3, 4, 5, 6, 7, 8].map(n => md["participante_" + n] || "");
+    amostra.push({ total: totCents / 100, quantidade: md.quantidade || "", amount_product: md.amount_product || "", amount_bump: md.amount_bump || "",
+      amount_discount: md.amount_discount || "", has_bump: md.has_bump || "", offer_id: md.offer_id || "", access_tier: md.access_tier || "", cupom: md.cupom || "",
+      fator, bump, totalIngressos });
     await lancar(ch, {
       qty: md.quantidade || md.quantity || md.qtd || 1,
-      name: md.customer_name || md.nome || bd.name || ch.receipt_email,
+      name: md.customer_name || [md.lead_first_name, md.lead_last_name].filter(Boolean).join(" ") || bd.name || ch.receipt_email,
       email: md.lead_email || md.customer_email || md.email || bd.email || ch.receipt_email,
-      via: "sync-checkout",
+      via: "sync-checkout", totalIngressos, participantes, bump, marca: true,
     });
   }
 }
@@ -191,8 +211,9 @@ const revisarTodos = [...anterior.filter(r => idsAtuais.has(r.novo) && !revisar.
 await stRef.set({
   ultimaExecucao: new Date().toISOString(), vistos, novos, vinculados, reembolsos, taxaReal: comTaxaReal,
   marcasConfiguradas: marcas, marcasNoStripe: resumoMarcas, chavesMetadata: chavesMeta, revisar: revisarTodos,
+  simulacao: SIMULAR ? { plano, amostra } : null,
 });
 
 console.log(`Vendas consideradas: ${vistos} · novos inscritos: ${novos} · já existentes vinculados: ${vinculados} · reembolsos: ${reembolsos}` +
   ` · para revisar: ${revisarTodos.length} · marcas no Stripe desde ${ev.vendasDesde || "2026-09-01"}: ${Object.keys(resumoMarcas).length}` +
-  (comTaxaReal ? "" : " · taxa estimada"));
+  (comTaxaReal ? "" : " · taxa estimada") + (SIMULAR ? " · SIMULAÇÃO (checkout próprio não gravado)" : ""));
