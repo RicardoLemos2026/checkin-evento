@@ -121,10 +121,12 @@ async function lancar(ch, { qty, name, email, via, totalIngressos, participantes
     const quem = part || name;
     const valorOk = e => Math.abs((+e.valor || 0) - v) < 0.005 || (e.sub === "Reembolso" && (+e.valor || 0) === 0);
     const bySid = existentes.find(e => e.stripeId === stripeId);
-    const porNome = e => !e.stripeId && e.dataProc === created && (sameName(e.cliente, quem) || (!part && sameName(e.cliente, name)));
-    let ex = bySid || existentes.find(e => porNome(e) && valorOk(e));
+    // Procura primeiro pelo nome do participante; depois pelo nome do comprador (planilhas costumam usar o do comprador).
+    const pelo = nm => e => !e.stripeId && e.dataProc === created && sameName(e.cliente, nm);
+    const nomes = part ? [quem, name] : [name];
+    let ex = bySid || nomes.map(nm => existentes.find(e => pelo(nm)(e) && valorOk(e))).find(Boolean);
     if (!ex) {
-      ex = existentes.find(porNome);   // mesma pessoa e dia, valor diferente: vincula e avisa
+      ex = nomes.map(nm => existentes.find(pelo(nm))).find(Boolean);   // mesma pessoa e dia, valor diferente: vincula e avisa
       if (ex && !(marca && SIMULAR)) revisar.push({ tipo: "valor diferente", existente: ex.id, nome: ex.cliente, valorApp: +ex.valor || 0, valorStripe: v, stripeId });
       if (ex && marca && SIMULAR) plano.push({ acao: "aviso", tipo: "valor diferente", existente: ex.id, nome: ex.cliente, valorApp: +ex.valor || 0, valorStripe: v });
     }
