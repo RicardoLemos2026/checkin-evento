@@ -117,7 +117,8 @@ async function lancar(ch, { qty, name, email, via, totalIngressos, participantes
     restV -= v; restF -= f;
     const stripeId = qty > 1 ? ch.id + "#" + i : ch.id;
     const part = i > 1 ? String(participantes[i - 2] || "").replace(/<[^>]*>/g, "").trim() : "";
-    const cliente = qty > 1 ? (part ? `${part} (compra de ${name})` : `${name} (${i}/${qty})`) : name;
+    const temPart = participantes.some(x => String(x || "").trim());
+    const cliente = qty > 1 ? (part ? `${part} (compra de ${name})` : (i === 1 && temPart ? name : `${name} (${i}/${qty})`)) : name;
     const quem = part || name;
     const valorOk = e => Math.abs((+e.valor || 0) - v) < 0.005 || (e.sub === "Reembolso" && (+e.valor || 0) === 0);
     const bySid = existentes.find(e => e.stripeId === stripeId);
