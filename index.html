@@ -633,12 +633,33 @@ function viewCheckin() {
 
 /* ---- Inscritos ---- */
 function segTipo(nome) { const s = (cfgNow().segmentos || []).find(x => x.nome === nome); return s ? s.tipo : null; }
-function viewInscritos() {
+function insFiltrados() {
   const cfg = cfgNow(), f = S.fIns;
   let rows = S.ins.slice().sort((a, b) => (b.dataProc || "").localeCompare(a.dataProc || "") || (b.seq || 0) - (a.seq || 0));
-  const total = rows.length;
   if (f.seg) rows = rows.filter(r => (f.seg === "_sem" ? !(cfg.segmentos || []).some(s => s.nome === r.origem) : r.origem === f.seg));
   if (f.q) { const q = normName(f.q); rows = rows.filter(r => normName(r.cliente).includes(q)); }
+  return rows;
+}
+async function exportInscritos() {
+  if (!window.XLSX) { toast("Não foi possível carregar o gerador de Excel.", true); return; }
+  const dl = await window.claude.use("downloads");
+  if (!dl) { toast("Download indisponível nesta visualização.", true); return; }
+  const rows = insFiltrados(), cfg = cfgNow(), f = S.fIns;
+  const aoa = [["Data", "Cliente", "E-mail", "Origem", "Tipo de origem", "Valor", "Taxa", "Líquido", "Tipo", "Conta", "Data recebimento", "Check-in", "ID Stripe"],
+    ...rows.map(r => { const tp = segTipo(r.origem); return [fdate(r.dataProc), r.cliente || "", r.email || "", r.origem || "", tp === "free" ? "Free" : tp ? "Pago" : "sem origem",
+      +r.valor || 0, +r.taxa || 0, (+r.valor || 0) - (+r.taxa || 0), r.sub || "", r.conta || "", fdate(r.dataReceb), r.checkinEm ? ftime(r.checkinEm) : "", r.stripeId || ""]; })];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [12, 40, 30, 16, 14, 10, 10, 10, 12, 10, 16, 14, 30].map(w => ({ wch: w }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Inscritos");
+  const limpa = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  const filtro = (f.seg ? "_" + limpa(f.seg === "_sem" ? "sem_origem" : f.seg) : "") + (f.q ? "_busca" : "");
+  try { await dl.save({ filename: "Inscritos_" + limpa(cfg.nome || "evento") + filtro + ".xlsx", data: XLSX.write(wb, { type: "array", bookType: "xlsx" }) }); toast(rows.length + " inscrito(s) exportado(s)"); }
+  catch (e) { if (!e || e.code !== "declined") toast("Não foi possível gerar o arquivo.", true); }
+}
+function viewInscritos() {
+  const cfg = cfgNow(), f = S.fIns;
+  const total = S.ins.length;
+  const rows = insFiltrados();
   const cnt = n => S.ins.filter(r => r.sub === "Ingresso" && r.origem === n).length;
   const pills = '<button class="pill ' + (!f.seg ? "on" : "") + '" data-seg="">Todos (' + total + ")</button>" +
     (cfg.segmentos || []).map(s => '<button class="pill ' + (f.seg === s.nome ? "on" : "") + '" data-seg="' + esc(s.nome) + '">' + esc(s.nome) + " · " + (s.tipo === "free" ? "Free" : "Pago") + " (" + cnt(s.nome) + ")</button>").join("");
@@ -648,7 +669,7 @@ function viewInscritos() {
       (tp ? '<span class="badge ' + tp + '">' + (tp === "free" ? "Free" : "Pago") + "</span>" : '<span class="badge bad">sem origem</span>') + '</td><td class="r">' + money(r.valor) + '</td><td class="r">' + money(r.taxa) + '</td><td class="r">' + money((+r.valor || 0) - (+r.taxa || 0)) + "</td><td>" +
       (r.sub === "Reembolso" ? '<span class="badge bad">Reembolso</span>' : r.sub === "Ingresso" ? "Ingresso" : '<span class="badge warn">' + esc(r.sub) + "</span>") + "</td><td>" + esc(r.conta) + "</td><td>" + (r.checkinEm ? '<span class="badge ok">' + esc(ftime(r.checkinEm)) + "</span>" : "") + "</td></tr>";
   }).join("");
-  return '<div class="toolbar"><div class="pills">' + pills + '</div><span class="sp"></span><input class="search" id="qIns" placeholder="Buscar cliente…" value="' + esc(f.q) + '"><button class="btn" id="newIns"' + (S.canWrite ? "" : " disabled") + ">+ Novo inscrito</button></div>" +
+  return '<div class="toolbar"><div class="pills">' + pills + '</div><span class="sp"></span><input class="search" id="qIns" placeholder="Buscar cliente…" value="' + esc(f.q) + '"><button class="btn ghost" id="expIns" title="Baixa em Excel a lista que está na tela (com filtro e busca)">Exportar</button><button class="btn" id="newIns"' + (S.canWrite ? "" : " disabled") + ">+ Novo inscrito</button></div>" +
     '<div class="card"><div class="scroll"><table class="tbl"><tr><th>Data</th><th style="text-align:left">Cliente</th><th>Origem</th><th>Valor</th><th>Taxa</th><th>Líquido</th><th>Tipo</th><th>Conta</th><th>Check-in</th></tr>' +
     (body || '<tr><td colspan="9" class="empty">Nenhum lançamento encontrado.</td></tr>') + "</table></div></div>";
 }
@@ -905,6 +926,7 @@ function bindView() {
   on("[data-ev-del]", b => b.onclick = e => { e.stopPropagation(); deleteEventForm(S.events.find(x => x.id === b.dataset.evDel)); });
   const ta = $("#togArch"); if (ta) ta.onclick = () => { S.showArch = !S.showArch; ensureSubs(); render(true); };
   const ni = $("#newIns"); if (ni) ni.onclick = () => insForm(null);
+  const ei = $("#expIns"); if (ei) ei.onclick = exportInscritos;
   const qc = $("#qChk"); if (qc) qc.oninput = () => { S.fChk.q = qc.value; rerenderKeepFocus("#qChk"); };
   on("[data-ckf]", b => b.onclick = () => { S.fChk.f = b.dataset.ckf; render(true); });
   const wi = $("#walkIn"); if (wi) wi.onclick = () => insForm(null, { checkin: true });
