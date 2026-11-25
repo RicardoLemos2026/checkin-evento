@@ -715,23 +715,45 @@ function insForm(rec, o2) {
 }
 
 /* ---- Gastos ---- */
-function viewGastos() {
-  const cfg = cfgNow(), f = S.fGas;
+function gasFiltrados() {
+  const f = S.fGas;
   let rows = S.gastos.slice().sort((a, b) => (b.dataPag || "").localeCompare(a.dataPag || "") || (b.seq || 0) - (a.seq || 0));
   if (f.cat) rows = rows.filter(r => r.categoria === f.cat);
   if (f.st) rows = rows.filter(r => r.status === f.st);
-  if (f.q) { const q = normName(f.q); rows = rows.filter(r => normName(r.fornecedor + " " + (r.obs || "")).includes(q)); }
+  if (f.q) { const q = normName(f.q); rows = rows.filter(r => normName(r.fornecedor + " " + (r.comprador || "") + " " + (r.obs || "")).includes(q)); }
+  return rows;
+}
+async function exportGastos() {
+  if (!window.XLSX) { toast("Não foi possível carregar o gerador de Excel.", true); return; }
+  const dl = await window.claude.use("downloads");
+  if (!dl) { toast("Download indisponível nesta visualização.", true); return; }
+  const rows = gasFiltrados(), cfg = cfgNow(), f = S.fGas;
+  const aoa = [["Data Pagamento", "Fornecedor", "Categoria", "Valor", "Forma de Pagamento", "Comprador", "Status", "Observações"],
+    ...rows.map(g => [fdate(g.dataPag), g.fornecedor || "", g.categoria || "", +g.valor || 0, g.forma || "", g.comprador || "", g.status || "", g.obs || ""])];
+  aoa.push(["TOTAL", "", "", r2(sum(rows, g => g.valor)), "", "", "", ""]);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [14, 30, 32, 12, 22, 22, 12, 36].map(w => ({ wch: w }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Gastos");
+  const limpa = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  const filtro = (f.cat ? "_" + limpa(f.cat) : "") + (f.st ? "_" + limpa(f.st) : "") + (f.q ? "_busca" : "");
+  try { await dl.save({ filename: "Gastos_" + limpa(cfg.nome || "evento") + filtro + ".xlsx", data: XLSX.write(wb, { type: "array", bookType: "xlsx" }) }); toast(rows.length + " gasto(s) exportado(s)"); }
+  catch (e) { if (!e || e.code !== "declined") toast("Não foi possível gerar o arquivo.", true); }
+}
+function viewGastos() {
+  const cfg = cfgNow(), f = S.fGas;
+  const rows = gasFiltrados();
   const tot = sum(S.gastos, g => g.valor), pago = sum(S.gastos.filter(g => g.status === "Pago"), g => g.valor), pend = sum(S.gastos.filter(g => g.status === "Pendente" || g.status === "Atrasado"), g => g.valor);
   const stb = s => s === "Pago" ? '<span class="badge ok">Pago</span>' : s === "Pendente" ? '<span class="badge warn">Pendente</span>' : s === "Atrasado" ? '<span class="badge bad">Atrasado</span>' : esc(s);
-  const body = rows.map(g => '<tr class="click" data-edit-gas="' + esc(g.id) + '"><td>' + fdate(g.dataPag) + '</td><td class="wrapc">' + esc(g.fornecedor) + "</td><td>" + (g.categoria && (cfg.categorias || []).some(c => c.nome === g.categoria) ? esc(g.categoria) : '<span class="badge bad">' + esc(g.categoria || "sem categoria") + "</span>") + '</td><td class="r">' + money(g.valor) + "</td><td>" + esc(g.forma) + "</td><td>" + stb(g.status) + '</td><td class="wrapc">' + esc(g.obs) + "</td></tr>").join("");
+  const body = rows.map(g => '<tr class="click" data-edit-gas="' + esc(g.id) + '"><td>' + fdate(g.dataPag) + '</td><td class="wrapc">' + esc(g.fornecedor) + "</td><td>" + (g.categoria && (cfg.categorias || []).some(c => c.nome === g.categoria) ? esc(g.categoria) : '<span class="badge bad">' + esc(g.categoria || "sem categoria") + "</span>") + '</td><td class="r">' + money(g.valor) + "</td><td>" + esc(g.forma) + "</td><td>" + esc(g.comprador || "") + "</td><td>" + stb(g.status) + '</td><td class="wrapc">' + esc(g.obs) + "</td></tr>").join("");
   return '<div class="grid kpis"><div class="card kpi"><div class="l">Total lançado</div><div class="v">' + money(tot) + '</div><div class="s">' + S.gastos.length + ' lançamentos</div></div><div class="card kpi"><div class="l">Pago</div><div class="v">' + money(pago) + '</div></div><div class="card kpi"><div class="l">Pendente / atrasado</div><div class="v">' + money(pend) + "</div></div></div>" +
-    '<div class="toolbar"><select id="fCat"><option value="">Todas as categorias</option>' + (cfg.categorias || []).map(c => '<option ' + (f.cat === c.nome ? "selected " : "") + 'value="' + esc(c.nome) + '">' + esc(c.nome) + "</option>").join("") + '</select><select id="fSt"><option value="">Todos os status</option>' + ["Pago", "Pendente", "Atrasado", "-"].map(s => '<option ' + (f.st === s ? "selected " : "") + 'value="' + s + '">' + s + "</option>").join("") + '</select><input class="search" id="qGas" placeholder="Buscar fornecedor ou observação…" value="' + esc(f.q) + '"><span class="sp"></span><button class="btn" id="newGas"' + (S.canWrite ? "" : " disabled") + ">+ Novo gasto</button></div>" +
-    '<div class="card"><div class="scroll"><table class="tbl"><tr><th>Data</th><th style="text-align:left">Fornecedor</th><th>Categoria</th><th>Valor</th><th>Forma</th><th>Status</th><th style="text-align:left">Obs.</th></tr>' + (body || '<tr><td colspan="7" class="empty">Nenhum gasto lançado.</td></tr>') + "</table></div></div>";
+    '<div class="toolbar"><select id="fCat"><option value="">Todas as categorias</option>' + (cfg.categorias || []).map(c => '<option ' + (f.cat === c.nome ? "selected " : "") + 'value="' + esc(c.nome) + '">' + esc(c.nome) + "</option>").join("") + '</select><select id="fSt"><option value="">Todos os status</option>' + ["Pago", "Pendente", "Atrasado", "-"].map(s => '<option ' + (f.st === s ? "selected " : "") + 'value="' + s + '">' + s + "</option>").join("") + '</select><input class="search" id="qGas" placeholder="Buscar fornecedor, comprador ou observação…" value="' + esc(f.q) + '"><span class="sp"></span><button class="btn ghost" id="expGas" title="Baixa em Excel a lista que está na tela (com filtros e busca)">Exportar</button><button class="btn" id="newGas"' + (S.canWrite ? "" : " disabled") + ">+ Novo gasto</button></div>" +
+    '<div class="card"><div class="scroll"><table class="tbl"><tr><th>Data</th><th style="text-align:left">Fornecedor</th><th>Categoria</th><th>Valor</th><th>Forma</th><th>Comprador</th><th>Status</th><th style="text-align:left">Obs.</th></tr>' + (body || '<tr><td colspan="8" class="empty">Nenhum gasto lançado.</td></tr>') + "</table></div></div>";
 }
 function gasForm(rec) {
   const cfg = cfgNow(), isNew = !rec, cats = (cfg.categorias || []).map(c => c.nome);
-  const v0 = rec || { fornecedor: "", categoria: cats[0] || "", valor: "", dataPag: todayISO(), forma: "", status: "Pago", obs: "" };
+  const v0 = rec || { fornecedor: "", categoria: cats[0] || "", valor: "", dataPag: todayISO(), forma: "", comprador: "", status: "Pago", obs: "" };
   const formas = Array.from(new Set(S.gastos.map(g => g.forma).filter(Boolean)));
+  const compradores = Array.from(new Set(S.gastos.map(g => g.comprador).filter(Boolean)));
   openForm({
     title: isNew ? "Novo gasto" : "Editar gasto", values: v0,
     fields: [
@@ -741,12 +763,14 @@ function gasForm(rec) {
       { key: "dataPag", label: "Data de pagamento", type: "date" },
       { key: "status", label: "Status", type: "select", options: ["Pago", "Pendente", "Atrasado", "-"].map(s => opt(s)) },
       { key: "forma", label: "Forma de pagamento", list: "dlForma", wide: true },
+      { key: "comprador", label: "Comprador (quem fez a compra)", list: "dlComprador", wide: true },
       { key: "obs", label: "Observações", type: "textarea", wide: true }
     ],
-    datalists: '<datalist id="dlForma">' + formas.map(c => '<option value="' + esc(c) + '">').join("") + "</datalist>",
+    datalists: '<datalist id="dlForma">' + formas.map(c => '<option value="' + esc(c) + '">').join("") + "</datalist>" +
+      '<datalist id="dlComprador">' + compradores.map(c => '<option value="' + esc(c) + '">').join("") + "</datalist>",
     validate: v => !v.fornecedor.trim() ? "Informe o fornecedor." : !v.categoria ? "Escolha a categoria (cadastre em Metas e Budget)." : null,
     onSave: v => run(async () => {
-      const data = { fornecedor: v.fornecedor.trim(), categoria: v.categoria, valor: r2(num(v.valor)), dataPag: v.dataPag || "", status: v.status, forma: v.forma.trim(), obs: v.obs.trim() };
+      const data = { fornecedor: v.fornecedor.trim(), categoria: v.categoria, valor: r2(num(v.valor)), dataPag: v.dataPag || "", status: v.status, forma: v.forma.trim(), comprador: (v.comprador || "").trim(), obs: v.obs.trim() };
       if (isNew) { data.seq = Date.now(); await S.db.collection(P("gastos")).add(data); }
       else await S.db.doc(P("gastos/" + rec.id)).set({ ...clean(rec), ...data });
     }, "Salvo"),
@@ -902,7 +926,7 @@ async function exportXlsx() {
   add("Receita", [["Cliente", "Data de Processamento", "Data recebimento", "ValorTotal", "Taxa", "Valor Liquido Realizado", "Categoria", "Subcategoria", "Conta", "Origem", "Check-in"],
     ...ins.map(r => [r.cliente, fdate(r.dataProc), fdate(r.dataReceb), +r.valor || 0, +r.taxa || 0, (+r.valor || 0) - (+r.taxa || 0), "Evento", r.sub, r.conta, r.origem, r.checkinEm ? ftime(r.checkinEm) : ""])], [38, 20, 16, 12, 10, 22, 10, 14, 10, 14, 14]);
   const gs = S.gastos.slice().sort((a, b) => (a.dataPag || "").localeCompare(b.dataPag || ""));
-  add("Controle de Gastos", [["Fornecedor", "Categoria", "Valor Real", "Data Pagamento", "Forma de Pagamento", "Status Pagamento", "Observações"], ...gs.map(g => [g.fornecedor, g.categoria, +g.valor || 0, fdate(g.dataPag), g.forma, g.status, g.obs])], [28, 34, 12, 16, 22, 16, 30]);
+  add("Controle de Gastos", [["Fornecedor", "Categoria", "Valor Real", "Data Pagamento", "Forma de Pagamento", "Comprador", "Status Pagamento", "Observações"], ...gs.map(g => [g.fornecedor, g.categoria, +g.valor || 0, fdate(g.dataPag), g.forma, g.comprador || "", g.status, g.obs])], [28, 34, 12, 16, 22, 22, 16, 30]);
   const al = [["Forma de pagamento", "Qtd vendida", "Preço unitário", "Receita bruta", "Taxa (Stripe)", "Receita líquida"], ...c.al.linhas.map(l => [l.forma, +l.qtd || 0, +l.preco || 0, (+l.qtd || 0) * (+l.preco || 0), +l.taxa || 0, (+l.qtd || 0) * (+l.preco || 0) - (+l.taxa || 0)]),
     ["TOTAL", c.al.qtd, "", c.al.bruta, c.al.taxa, c.al.liq], [], ["Descrição", "Fornecedor", "Valor", "Status", "Data Pagamento", "Observações"], ...S.adesp.map(d => [d.descricao, d.fornecedor, +d.valor || 0, d.status, fdate(d.dataPag), d.obs]),
     ["TOTAL DESPESAS", "", c.al.desp], [], ["Saldo do almoço", c.al.saldo]];
@@ -937,6 +961,7 @@ function bindView() {
   const fc = $("#fCat"); if (fc) fc.onchange = () => { S.fGas.cat = fc.value; render(true); };
   const fs = $("#fSt"); if (fs) fs.onchange = () => { S.fGas.st = fs.value; render(true); };
   const ng = $("#newGas"); if (ng) ng.onclick = () => gasForm(null);
+  const eg = $("#expGas"); if (eg) eg.onclick = exportGastos;
   on("[data-edit-gas]", r => r.onclick = () => gasForm(S.gastos.find(x => x.id === r.dataset.editGas)));
   // almoço
   on("[data-al]", i => i.oninput = () => {
